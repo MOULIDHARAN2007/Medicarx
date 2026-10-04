@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Data Sharing Control — MediCareX</title>
+    <meta name="description" content="Manage fine-grained medical data sharing permissions with doctors and view transparent access audit logs.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Health Data Sharing Control</h1>
+                    <p class="text-muted">You own your health data. Grant or revoke doctor access with granular permission controls.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openGrantModal()">
+                    <span>✚ Grant Doctor Access</span>
+                </button>
+            </div>
+
+            <!-- Privacy Guarantee Banner -->
+            <div class="card bg-primary-subtle border-primary-light p-4 mt-6 flex items-start gap-4">
+                <div class="text-3xl">🔒</div>
+                <div>
+                    <h4 class="font-bold text-primary-dark">Patient-Sovereign Privacy Guarantee</h4>
+                    <p class="text-sm text-primary-dark mt-1 opacity-90">
+                        No doctor can view your health records, prescriptions, or timeline without your explicit active permission grant. You can revoke access at any second, and all viewing events are recorded in the audit log below.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Active Permissions -->
+            <div class="card mt-6">
+                <div class="card-header flex justify-between items-center">
+                    <h3 class="card-title">Doctor Access Permissions</h3>
+                    <span class="badge badge-primary" id="active-grants-badge">0 Active</span>
+                </div>
+                <div id="grants-container" class="table-responsive">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading permissions...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Access Audit Logs -->
+            <div class="card mt-6">
+                <div class="card-header">
+                    <h3 class="card-title">Data Access Audit Logs</h3>
+                    <p class="text-xs text-muted">Immutable log of whenever a medical provider accessed your electronic health records.</p>
+                </div>
+                <div id="logs-container" class="table-responsive">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading access logs...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <!-- Grant Access Modal -->
+    <div class="modal-overlay" id="grant-modal">
+        <div class="modal-container" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="color: var(--navy);">Grant Doctor Access Permission</h3>
+                <button class="btn-icon" onclick="closeGrantModal()" aria-label="Close modal">✕</button>
+            </div>
+            <form id="grant-form">
+                <div class="modal-body space-y-4">
+                    <div class="form-group">
+                        <label class="form-label" for="grant-doctor-select">Select Medical Doctor *</label>
+                        <select id="grant-doctor-select" class="form-select" required>
+                            <option value="">-- Choose Doctor --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="grant-scope">Access Scope *</label>
+                        <select id="grant-scope" class="form-select" required>
+                            <option value="FULL_HISTORY">Full Medical History (Prescriptions, Labs, Timeline)</option>
+                            <option value="PRESCRIPTIONS">Prescriptions & Medicines Only</option>
+                            <option value="LAB_REPORTS">Lab Diagnostic Reports Only</option>
+                            <option value="EMERGENCY_ONLY">Emergency Profile Only</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="grant-expiry">Access Expiration Date (Optional)</label>
+                        <input type="date" id="grant-expiry" class="form-input" />
+                        <span class="text-xs text-muted">Leave empty for continuous access until manually revoked.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="grant-notes">Reason / Notes for Doctor</label>
+                        <textarea id="grant-notes" class="form-textarea" rows="2" placeholder="e.g. For second opinion on cardiology checkup..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeGrantModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Authorize Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('patient-data-sharing');
+            loadDataSharing();
+            loadDoctorsList();
+        });
+
+        async function loadDataSharing() {
+            try {
+                const res = await window.api.getPatientDataSharing();
+                const data = res.data || {};
+                renderGrants(data.grants || []);
+                renderLogs(data.accessLogs || []);
+            } catch (err) {
+                console.error(err);
+                window.toast.error('Failed to load data sharing permissions');
+            }
+        }
+
+        async function loadDoctorsList() {
+            try {
+                const res = await window.api.get('/api/doctor/search');
+                const doctors = res.data || [];
+                const select = document.getElementById('grant-doctor-select');
+                select.innerHTML = '<option value="">-- Choose Doctor --</option>' + 
+                    doctors.map(d => `<option value="${d.userId || d.id}">Dr. ${escapeHtml(d.fullName || d.name)} (${escapeHtml(d.specialization || 'Physician')})</option>`).join('');
+            } catch (err) {
+                console.error('Failed to load doctors list', err);
+            }
+        }
+
+        function renderGrants(grants) {
+            const container = document.getElementById('grants-container');
+            const activeCount = grants.filter(g => g.status === 'ACTIVE').length;
+            document.getElementById('active-grants-badge').textContent = `${activeCount} Active`;
+
+            if (grants.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted">
+                        <p>No active doctor sharing permissions.</p>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="openGrantModal()">Grant Access to Doctor</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Doctor</th>
+                            <th>Permission Scope</th>
+                            <th>Status</th>
+                            <th>Expires On</th>
+                            <th>Authorized Date</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${grants.map(g => `
+                            <tr>
+                                <td>
+                                    <div class="font-bold">Dr. ${escapeHtml(g.doctorName || 'Doctor')}</div>
+                                    <div class="text-xs text-muted">${escapeHtml(g.doctorEmail || '')}</div>
+                                </td>
+                                <td><span class="badge badge-info">${escapeHtml(g.accessScope || 'FULL_HISTORY')}</span></td>
+                                <td>
+                                    <span class="badge ${g.status === 'ACTIVE' ? 'badge-success' : 'badge-secondary'}">
+                                        ${g.status === 'ACTIVE' ? '✓ Active' : 'Revoked'}
+                                    </span>
+                                </td>
+                                <td class="text-sm">${escapeHtml(g.expiresAt || 'No Expiry')}</td>
+                                <td class="text-sm text-muted">${g.createdAt ? g.createdAt.substring(0, 10) : 'N/A'}</td>
+                                <td class="text-right">
+                                    ${g.status === 'ACTIVE' ? `
+                                        <button class="btn btn-sm btn-danger" onclick="revokeGrant(${g.id})">
+                                            Revoke Access
+                                        </button>
+                                    ` : `<span class="text-xs text-muted">Access Terminated</span>`}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderLogs(logs) {
+            const container = document.getElementById('logs-container');
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-muted">
+                        <p>No recent data access events logged.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Accessed By</th>
+                            <th>Resource Type</th>
+                            <th>Action</th>
+                            <th>Timestamp</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${logs.map(l => `
+                            <tr>
+                                <td class="font-medium">${escapeHtml(l.doctorName ? 'Dr. ' + l.doctorName : 'Medical Staff')}</td>
+                                <td><span class="badge badge-secondary">${escapeHtml(l.recordType)}</span></td>
+                                <td class="text-sm font-semibold">${escapeHtml(l.action || 'VIEW')}</td>
+                                <td class="text-sm text-muted">${escapeHtml(l.accessedAt || '')}</td>
+                                <td class="text-xs text-muted font-mono">${escapeHtml(l.ipAddress || 'Internal')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function openGrantModal() {
+            document.getElementById('grant-modal').classList.add('open');
+        }
+
+        function closeGrantModal() {
+            document.getElementById('grant-modal').classList.remove('open');
+        }
+
+        document.getElementById('grant-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const doctorId = document.getElementById('grant-doctor-select').value;
+            const accessScope = document.getElementById('grant-scope').value;
+            const expiresAt = document.getElementById('grant-expiry').value;
+            const notes = document.getElementById('grant-notes').value.trim();
+
+            if (!doctorId) {
+                window.toast.error('Please select a doctor');
+                return;
+            }
+
+            try {
+                await window.api.savePatientDataSharing({ doctorId, accessScope, expiresAt, notes });
+                window.toast.success('Doctor access authorized successfully');
+                closeGrantModal();
+                loadDataSharing();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to authorize access');
+            }
+        });
+
+        async function revokeGrant(id) {
+            if (!confirm('Are you sure you want to revoke this doctor\'s access to your medical records?')) {
+                return;
+            }
+            try {
+                await window.api.revokePatientDataSharing(id);
+                window.toast.info('Access revoked');
+                loadDataSharing();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to revoke access');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

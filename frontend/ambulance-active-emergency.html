@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Emergency Dispatch — MediCareX Ambulance</title>
+    <meta name="description" content="Live trip progression and emergency patient transit control for ambulance paramedics.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center flex-wrap gap-4 mb-4">
+                    <div>
+                        <h1 class="page-title">Active Emergency Dispatch</h1>
+                        <p class="page-subtitle">Real-time emergency transit lifecycle, patient status, and hospital handover controls</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-outline" onclick="loadActiveEmergency()">
+                            <span>↻ Refresh Status</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="active-emergency-view-container">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Checking active dispatch status...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let pollTimer = null;
+        let activeTrip = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('ambulance-active-emergency');
+            loadActiveEmergency();
+            startPolling();
+        });
+
+        async function loadActiveEmergency() {
+            try {
+                const res = await window.api.getDriverEmergencyRequests();
+                const data = res.data || {};
+                const myRequests = data.myRequests || [];
+
+                activeTrip = myRequests.find(r => !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(r.status));
+                renderActiveView(activeTrip);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderActiveView(trip) {
+            const container = document.getElementById('active-emergency-view-container');
+
+            if (!trip) {
+                container.innerHTML = `
+                    <div class="card p-6 text-center" style="background: #F8FAFC; border: 1px dashed var(--border); border-radius: 12px;">
+                        <div style="font-size: 3rem; margin-bottom: 0.75rem;">🚑</div>
+                        <h3 style="color: var(--navy); font-size: 1.25rem; margin: 0 0 0.5rem 0;">No Active Emergency</h3>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); margin: 0 auto 1.5rem auto; max-width: 480px;">
+                            You are currently available for emergency assignments. Check the Emergency Requests queue to accept incoming dispatches.
+                        </p>
+                        <a href="/ambulance-requests.html" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            🚨 View Emergency Requests Queue →
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            const s = (trip.status || '').toUpperCase();
+
+            // Progress Stages definition
+            const stages = [
+                { key: 'ASSIGNED', label: 'Assigned' },
+                { key: 'ACCEPTED', label: 'Accepted' },
+                { key: 'EN_ROUTE', label: 'En Route' },
+                { key: 'ARRIVED', label: 'At Scene' },
+                { key: 'PATIENT_PICKED_UP', label: 'Patient Onboard' },
+                { key: 'TRANSPORTING', label: 'Transporting' },
+                { key: 'ARRIVED_AT_HOSPITAL', label: 'At Hospital ER' },
+                { key: 'COMPLETED', label: 'Handover Done' }
+            ];
+
+            const currentIndex = stages.findIndex(st => st.key === s);
+
+            container.innerHTML = `
+                <!-- Emergency Banner -->
+                <div class="card mb-4 border-2" style="border-color: #2563eb; overflow: hidden;">
+                    <div class="card-header flex justify-between items-center flex-wrap gap-2" style="background: #EFF6FF; border-bottom: 1px solid #BFDBFE;">
+                        <div class="flex items-center gap-3">
+                            <span class="badge badge-primary" style="font-weight: 800;">● ACTIVE EMERGENCY #${trip.id}</span>
+                            <span style="font-size: 12.5px; color: #1E40AF;">Requested: ${escapeHtml(trip.requestedAt || 'Just now')}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-danger uppercase" style="font-weight: 700;">${escapeHtml(trip.severity || 'CRITICAL')}</span>
+                            <span class="badge badge-blue uppercase" style="font-weight: 800;">${escapeHtml(s).replace(/_/g, ' ')}</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Stepper -->
+                    <div class="p-4" style="background: #F8FAFC; border-bottom: 1px solid var(--border);">
+                        <div class="flex justify-between items-center flex-wrap gap-2" style="position: relative;">
+                            ${stages.map((st, idx) => {
+                                const isPassed = idx < currentIndex;
+                                const isCurrent = idx === currentIndex;
+                                const color = isCurrent ? 'var(--primary-blue)' : (isPassed ? '#10B981' : 'var(--text-muted)');
+                                const bg = isCurrent ? '#EFF6FF' : (isPassed ? '#ECFDF5' : '#F1F5F9');
+                                const border = isCurrent ? 'var(--primary-blue)' : (isPassed ? '#10B981' : 'var(--border)');
+                                return `
+                                    <div class="flex flex-col items-center text-center" style="flex: 1; min-width: 80px;">
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: ${bg}; border: 2px solid ${border}; color: ${color}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; margin-bottom: 0.25rem;">
+                                            ${isPassed ? '✓' : (idx + 1)}
+                                        </div>
+                                        <span style="font-size: 10.5px; font-weight: ${isCurrent ? '700' : '500'}; color: ${color}; text-transform: uppercase;">${st.label}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="p-4">
+                        <div class="grid grid-3 gap-4">
+                            <!-- Col 1: Patient Information -->
+                            <div class="p-4" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Patient & Contact</span>
+                                <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--navy); margin: 0.3rem 0 0.1rem 0;">${escapeHtml(trip.patientName || 'Emergency Patient')}</h3>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                                    📞 <a href="tel:${escapeHtml(trip.contactPhone || '')}" style="color: var(--primary-blue); font-weight: 600;">${escapeHtml(trip.contactPhone || 'N/A')}</a>
+                                </div>
+                                
+                                <div class="p-3" style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px; font-size: 12.5px; color: #991B1B;">
+                                    <div><strong>Emergency Type:</strong> ${escapeHtml(trip.emergencyType || 'General')}</div>
+                                    <div style="margin-top: 0.2rem;"><strong>Caller Notes:</strong> ${escapeHtml(trip.patientNotes || 'Urgent medical assistance required')}</div>
+                                </div>
+                            </div>
+
+                            <!-- Col 2: Locations & Destination -->
+                            <div class="p-4" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Pickup Location</span>
+                                <div style="font-size: 14px; font-weight: 700; color: var(--navy); margin-top: 0.3rem;">
+                                    📍 ${escapeHtml(trip.pickupAddress || 'Current GPS Location Broadcast')}
+                                </div>
+                                ${trip.landmark ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 0.25rem;">Landmark: ${escapeHtml(trip.landmark)}</div>` : ''}
+                                
+                                <div class="mt-4 pt-3" style="border-top: 1px solid var(--border);">
+                                    <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Destination Emergency Hospital:</span>
+                                    <div style="font-size: 13.5px; font-weight: 700; color: var(--navy); margin-top: 0.2rem;">
+                                        🏥 ${escapeHtml(trip.destinationHospitalName || trip.hospitalAffiliation || 'Not Selected Yet')}
+                                    </div>
+                                    ${trip.destinationHospitalAddress ? `<div style="font-size: 11.5px; color: #64748B;">${escapeHtml(trip.destinationHospitalAddress)}</div>` : ''}
+                                    ${trip.destinationHospitalPhone ? `<div style="font-size: 11.5px; color: #64748B;">📞 ${escapeHtml(trip.destinationHospitalPhone)}</div>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Col 3: Stage Progression Controls -->
+                            <div class="p-4 flex flex-col justify-center gap-3" style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px;">
+                                <div>
+                                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.5px; display: block; text-align: center;">Advance Emergency Stage</span>
+                                    <div style="font-size: 13px; text-align: center; color: #1E3A8A; margin-top: 0.2rem;">Click button below upon reaching next stage:</div>
+                                </div>
+                                <div id="trip-stage-action-box" class="flex flex-col gap-2">
+                                    ${renderActionButtons(trip)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderActionButtons(trip) {
+            const s = (trip.status || '').toUpperCase();
+
+            if (s === 'REQUESTED' || s === 'ASSIGNED') {
+                return `
+                    <button class="btn btn-primary w-full justify-center btn-lg" onclick="advanceStage(${trip.id}, 'ACCEPTED')">
+                        ✓ Accept & Confirm Dispatch
+                    </button>
+                `;
+            } else if (s === 'ACCEPTED') {
+                return `
+                    <button class="btn btn-primary w-full justify-center btn-lg" onclick="advanceStage(${trip.id}, 'EN_ROUTE')">
+                        🚑 Departed Station (En Route)
+                    </button>
+                `;
+            } else if (s === 'EN_ROUTE') {
+                return `
+                    <button class="btn btn-success w-full justify-center btn-lg" onclick="advanceStage(${trip.id}, 'ARRIVED')">
+                        📍 Arrived at Patient Location
+                    </button>
+                `;
+            } else if (s === 'ARRIVED') {
+                return `
+                    <button class="btn btn-primary w-full justify-center btn-lg" onclick="advanceStage(${trip.id}, 'PATIENT_PICKED_UP')">
+                        🩺 Patient Onboard (Picked Up)
+                    </button>
+                `;
+            } else if (s === 'PATIENT_PICKED_UP') {
+                return `
+                    <a href="/ambulance-dashboard.html" class="btn btn-primary w-full justify-center btn-lg font-bold">
+                        🏥 Select Destination Hospital on Map →
+                    </a>
+                    <button class="btn btn-outline w-full justify-center" onclick="advanceStage(${trip.id}, 'TRANSPORTING')">
+                        Skip / Transporting to Default ER
+                    </button>
+                `;
+            } else if (s === 'TRANSPORTING') {
+                return `
+                    <button class="btn btn-success w-full justify-center btn-lg" onclick="advanceStage(${trip.id}, 'ARRIVED_AT_HOSPITAL')">
+                        🏥 Arrived at Hospital ER
+                    </button>
+                `;
+            } else if (s === 'ARRIVED_AT_HOSPITAL') {
+                return `
+                    <button class="btn btn-success w-full justify-center btn-lg font-bold" onclick="advanceStage(${trip.id}, 'COMPLETED')">
+                        ✓ Patient Handover Done (Complete)
+                    </button>
+                `;
+            }
+            return `<span class="badge badge-gray text-center">${escapeHtml(s)}</span>`;
+        }
+
+        async function advanceStage(id, nextStatus) {
+            try {
+                await window.api.updateEmergencyRequestStatus(id, nextStatus);
+                window.toast.success(`Trip status updated: ${nextStatus.replace(/_/g, ' ')}`);
+                if (nextStatus === 'COMPLETED') {
+                    setTimeout(() => {
+                        window.location.href = '/ambulance-trip-history.html';
+                    }, 1000);
+                } else {
+                    loadActiveEmergency();
+                }
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to advance trip status');
+            }
+        }
+
+        function startPolling() {
+            if (!pollTimer) {
+                pollTimer = setInterval(loadActiveEmergency, 4000);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

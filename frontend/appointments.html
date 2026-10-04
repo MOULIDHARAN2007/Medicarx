@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Appointments — MediCareX</title>
+    <meta name="description" content="View and manage upcoming doctor consultations, appointment dates, and visit history.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .appt-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            transition: all 0.2s ease;
+        }
+        .appt-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+        }
+        .appt-date-box {
+            background: #f1f5f9;
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            text-align: center;
+            min-width: 90px;
+            border: 1px solid var(--border-color);
+        }
+        .appt-date-day {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--navy);
+            line-height: 1;
+        }
+        .appt-date-month {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .appt-details-col {
+            flex: 1;
+        }
+        .appt-doc-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 2px;
+        }
+        .appt-spec {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .appt-reason-box {
+            margin-top: 0.5rem;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: #f8fafc;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-sm);
+            display: inline-block;
+        }
+        @media (max-width: 768px) {
+            .appt-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .appt-actions {
+                width: 100%;
+                display: flex;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">My Appointments</h1>
+                        <p class="page-subtitle">Track your upcoming consultations and review medical visit history</p>
+                    </div>
+
+                    <a href="/doctor-search.html" class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Book New Appointment
+                    </a>
+                </div>
+
+                <!-- Tabs Filter -->
+                <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="tabs-header" style="margin-bottom: 0;">
+                        <button class="tab-btn active" onclick="setApptFilter(this, 'All')">All Appointments</button>
+                        <button class="tab-btn" onclick="setApptFilter(this, 'Upcoming')">Upcoming</button>
+                        <button class="tab-btn" onclick="setApptFilter(this, 'Completed')">Completed</button>
+                        <button class="tab-btn" onclick="setApptFilter(this, 'Cancelled')">Cancelled</button>
+                    </div>
+                </div>
+
+                <!-- Appointments Container -->
+                <div id="appointments-list-container">
+                    <div class="card" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                        Loading appointments...
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div class="modal-overlay" id="cancel-modal">
+        <div class="modal-container" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Cancel Appointment</h3>
+                <button class="btn-icon" onclick="closeCancelModal()">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">
+                    Are you sure you want to cancel this appointment? This action will free up the slot for other patients.
+                </p>
+                <input type="hidden" id="cancel-appt-id" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">Keep Appointment</button>
+                <button type="button" id="btn-confirm-cancel" class="btn btn-danger" onclick="confirmCancelAppt()">Yes, Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let myAppointments = [];
+        let currentFilter = 'All';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('appointments');
+            loadAppointments();
+        });
+
+        function setApptFilter(btn, filter) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = filter;
+            renderAppointments();
+        }
+
+        async function loadAppointments() {
+            const container = document.getElementById('appointments-list-container');
+            try {
+                const res = await window.api.getAppointments();
+                myAppointments = res.data || [];
+                renderAppointments();
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="card" style="padding: 2rem; color: var(--danger); text-align: center;">
+                        Error loading appointments: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderAppointments() {
+            const container = document.getElementById('appointments-list-container');
+            let list = [...myAppointments];
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            if (currentFilter === 'Upcoming') {
+                list = list.filter(a => (a.status === 'Confirmed' || a.status === 'Scheduled' || a.status === 'Pending') && a.appointmentDate >= todayStr);
+            } else if (currentFilter === 'Completed') {
+                list = list.filter(a => a.status === 'Completed' || (a.status === 'Confirmed' && a.appointmentDate < todayStr));
+            } else if (currentFilter === 'Cancelled') {
+                list = list.filter(a => a.status === 'Cancelled');
+            }
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="card" style="padding: 3.5rem 2rem; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 1rem;">📅</div>
+                        <h3 style="color: var(--navy); margin-bottom: 0.5rem;">No appointments in this category</h3>
+                        <p style="color: var(--text-secondary); font-size: 13px; max-width: 400px; margin: 0 auto 1.5rem;">
+                            You don't have any ${currentFilter.toLowerCase()} appointments scheduled. Book a consultation with top doctors.
+                        </p>
+                        <a href="/doctor-search.html" class="btn btn-primary">
+                            Find & Book Doctor
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = list.map(a => {
+                const dateObj = new Date(a.appointmentDate);
+                const dayNum = dateObj.getDate() || '—';
+                const monthStr = dateObj.toLocaleString('en-US', { month: 'short' }) || '';
+                const isUpcoming = (a.status === 'Confirmed' || a.status === 'Scheduled' || a.status === 'Pending') && a.appointmentDate >= todayStr;
+
+                let statusBadgeClass = 'badge-success';
+                if (a.status === 'Completed') statusBadgeClass = 'badge-blue';
+                if (a.status === 'Pending') statusBadgeClass = 'badge-warning';
+                if (a.status === 'Cancelled') statusBadgeClass = 'badge-danger';
+
+                return `
+                    <div class="appt-card">
+                        <div class="flex items-center gap-4" style="flex: 1;">
+                            <div class="appt-date-box">
+                                <div class="appt-date-day">${dayNum}</div>
+                                <div class="appt-date-month">${monthStr}</div>
+                            </div>
+
+                            <div class="appt-details-col">
+                                <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+                                    <div class="appt-doc-name">${a.doctorName}</div>
+                                    <span class="badge ${statusBadgeClass}">${a.status}</span>
+                                    <span class="badge badge-gray" style="font-size: 11px;">${a.type || 'General Consultation'}</span>
+                                </div>
+                                <div class="appt-spec">
+                                    ${a.doctorSpecialization ? a.doctorSpecialization + ' • ' : ''}${a.hospitalAffiliation || 'Manipal Hospital, Bangalore'}
+                                </div>
+                                <div style="font-size: 13px; color: var(--primary-blue); font-weight: 700; margin-top: 4px;">
+                                    ⏰ ${a.appointmentTime} · ${a.appointmentDate}
+                                </div>
+                                ${a.notes ? `<div class="appt-reason-box"><strong>Reason:</strong> ${a.notes}</div>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="appt-actions flex gap-2">
+                            ${isUpcoming ? `
+                                <button class="btn btn-sm btn-outline-danger" onclick="openCancelModal(${a.id})" style="color: var(--danger); border-color: #fecaca;">
+                                    Cancel Appointment
+                                </button>
+                            ` : `
+                                <a href="/doctor-search.html?doctorId=${a.doctorId}" class="btn btn-sm btn-secondary">
+                                    Book Again
+                                </a>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCancelModal(id) {
+            document.getElementById('cancel-appt-id').value = id;
+            document.getElementById('cancel-modal').classList.add('open');
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancel-modal').classList.remove('open');
+        }
+
+        async function confirmCancelAppt() {
+            const id = document.getElementById('cancel-appt-id').value;
+            const btn = document.getElementById('btn-confirm-cancel');
+            btn.disabled = true;
+            btn.innerText = 'Cancelling...';
+
+            try {
+                await window.api.cancelAppointment(parseInt(id));
+                window.toast.success('Appointment cancelled successfully.');
+                closeCancelModal();
+                loadAppointments();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to cancel appointment.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Yes, Cancel';
+            }
+        }
+    </script>
+</body>
+</html>

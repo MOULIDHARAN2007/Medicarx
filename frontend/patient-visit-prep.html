@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Visit Preparation — MediCareX</title>
+    <meta name="description" content="Prepare for upcoming doctor consultations by organizing your symptoms, home vitals, questions, and medication changes.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Doctor Visit Preparation</h1>
+                    <p class="text-muted">Never forget critical questions during your consultation. Organize symptoms, vitals, and concerns in advance.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openPrepModal()">
+                    <span>✚ Create Visit Preparation Note</span>
+                </button>
+            </div>
+
+            <!-- Helpful Guidance Banner -->
+            <div class="card bg-surface-subtle p-4 mt-6 border-l-4 border-primary">
+                <div class="flex items-start gap-3">
+                    <span class="text-2xl">📋</span>
+                    <div>
+                        <h4 class="font-bold text-sm">How Visit Preparation Helps You:</h4>
+                        <p class="text-xs text-muted mt-0.5">
+                            Studies show patients forget over 50% of questions during doctor visits. Preparing a concise note ensures your physician gets accurate symptom timelines, home vitals, and can address all your medication questions.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes List -->
+            <div class="mt-6" id="prep-notes-container">
+                <div class="text-center py-12 text-muted">
+                    <div class="spinner mb-2"></div>
+                    <p>Loading visit preparation notes...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <!-- Prep Note Modal -->
+    <div class="modal-overlay" id="prep-modal">
+        <div class="modal-container" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-prep-title" style="color: var(--navy);">New Doctor Visit Preparation Note</h3>
+                <button class="btn-icon" onclick="closePrepModal()" aria-label="Close modal">✕</button>
+            </div>
+            <form id="prep-form">
+                <input type="hidden" id="prep-id" />
+                <div class="modal-body space-y-4">
+                    <div class="form-group">
+                        <label class="form-label" for="prep-doctor-select">Consulting Doctor (Optional)</label>
+                        <select id="prep-doctor-select" class="form-select">
+                            <option value="">-- General / Any Doctor --</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="prep-symptoms">Primary Symptoms *</label>
+                            <input type="text" id="prep-symptoms" class="form-input" placeholder="e.g. Dry cough, chest congestion" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prep-duration">Symptom Duration *</label>
+                            <input type="text" id="prep-duration" class="form-input" placeholder="e.g. Past 4 days, worse at night" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="prep-questions">Key Questions for the Doctor *</label>
+                        <textarea id="prep-questions" class="form-textarea" rows="3" placeholder="1. Can I continue light workout?&#10;2. Should I stop the allergy medicine?&#10;3. Do I need a chest X-ray?" required></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="prep-vitals">Home Vitals Recorded</label>
+                            <input type="text" id="prep-vitals" class="form-input" placeholder="e.g. BP 120/80, Temp 99.2 F, Pulse 76" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prep-med-changes">Medication Changes / Side Effects</label>
+                            <input type="text" id="prep-med-changes" class="form-input" placeholder="e.g. Mild nausea after taking Dolo" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="prep-notes">Additional Context & History</label>
+                        <textarea id="prep-notes" class="form-textarea" rows="2" placeholder="e.g. Travelled last week, family history of asthma..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closePrepModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Preparation Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('patient-visit-prep');
+            loadPrepNotes();
+            loadDoctors();
+        });
+
+        async function loadDoctors() {
+            try {
+                const res = await window.api.get('/api/doctor/search');
+                const doctors = res.data || [];
+                const select = document.getElementById('prep-doctor-select');
+                select.innerHTML = '<option value="">-- General / Any Doctor --</option>' + 
+                    doctors.map(d => `<option value="${d.userId || d.id}">Dr. ${escapeHtml(d.fullName || d.name)} (${escapeHtml(d.specialization || 'Physician')})</option>`).join('');
+            } catch (ignored) {}
+        }
+
+        async function loadPrepNotes() {
+            const container = document.getElementById('prep-notes-container');
+            try {
+                const res = await window.api.getPatientVisitPrep();
+                const list = res.data || [];
+                renderNotes(list);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-danger">
+                        <p>Failed to load visit preparation notes.</p>
+                        <button class="btn btn-sm btn-secondary mt-2" onclick="loadPrepNotes()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderNotes(list) {
+            const container = document.getElementById('prep-notes-container');
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="card p-12 text-center">
+                        <div class="text-4xl mb-2">📝</div>
+                        <h4>No Visit Preparation Notes Yet</h4>
+                        <p class="text-muted text-sm mt-1">Create your first consultation preparation sheet with your symptoms and doctor questions.</p>
+                        <button class="btn btn-primary mt-4" onclick="openPrepModal()">Create Preparation Note</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    ${list.map(n => `
+                        <div class="card p-5 flex flex-col justify-between hover:shadow-md transition">
+                            <div>
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h3 class="font-bold text-lg text-primary-dark">${escapeHtml(n.primarySymptoms || 'Consultation Note')}</h3>
+                                        <span class="text-xs text-muted">Duration: ${escapeHtml(n.symptomDuration || 'Not specified')} • ${n.createdAt ? n.createdAt.substring(0, 10) : ''}</span>
+                                    </div>
+                                    ${n.doctorName ? `<span class="badge badge-info">Dr. ${escapeHtml(n.doctorName)}</span>` : `<span class="badge badge-secondary">General</span>`}
+                                </div>
+
+                                <div class="space-y-3 text-sm">
+                                    <div class="bg-surface-subtle p-3 rounded-lg border border-border">
+                                        <span class="text-xs font-bold text-primary block mb-1">❓ Questions for Doctor:</span>
+                                        <p class="text-xs whitespace-pre-line">${escapeHtml(n.questionsForDoctor || 'None recorded')}</p>
+                                    </div>
+
+                                    ${n.currentVitalsNotes ? `
+                                        <div class="text-xs">
+                                            <strong class="text-muted">Recorded Vitals:</strong> ${escapeHtml(n.currentVitalsNotes)}
+                                        </div>
+                                    ` : ''}
+
+                                    ${n.medicationChanges ? `
+                                        <div class="text-xs">
+                                            <strong class="text-muted">Medication Notes:</strong> ${escapeHtml(n.medicationChanges)}
+                                        </div>
+                                    ` : ''}
+
+                                    ${n.additionalNotes ? `
+                                        <div class="text-xs text-muted italic">
+                                            ${escapeHtml(n.additionalNotes)}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-border flex justify-between items-center">
+                                <button class="btn btn-sm btn-secondary" onclick="printNote('${escapeHtml(n.primarySymptoms)}', '${escapeHtml(n.questionsForDoctor)}')">
+                                    <span>🖨️ Print Sheet</span>
+                                </button>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-sm btn-danger" onclick="deleteNote(${n.id})">
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function openPrepModal() {
+            document.getElementById('prep-id').value = '';
+            document.getElementById('prep-form').reset();
+            document.getElementById('modal-prep-title').textContent = 'New Doctor Visit Preparation Note';
+            document.getElementById('prep-modal').classList.add('open');
+        }
+
+        function closePrepModal() {
+            document.getElementById('prep-modal').classList.remove('open');
+        }
+
+        document.getElementById('prep-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('prep-id').value;
+            const doctorId = document.getElementById('prep-doctor-select').value || null;
+            const primarySymptoms = document.getElementById('prep-symptoms').value.trim();
+            const symptomDuration = document.getElementById('prep-duration').value.trim();
+            const questionsForDoctor = document.getElementById('prep-questions').value.trim();
+            const currentVitalsNotes = document.getElementById('prep-vitals').value.trim();
+            const medicationChanges = document.getElementById('prep-med-changes').value.trim();
+            const additionalNotes = document.getElementById('prep-notes').value.trim();
+
+            try {
+                await window.api.savePatientVisitPrep({
+                    id, doctorId, primarySymptoms, symptomDuration, questionsForDoctor, currentVitalsNotes, medicationChanges, additionalNotes
+                });
+                window.toast.success('Visit preparation note saved!');
+                closePrepModal();
+                loadPrepNotes();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to save note');
+            }
+        });
+
+        async function deleteNote(id) {
+            if (!confirm('Are you sure you want to delete this visit preparation note?')) return;
+            try {
+                await window.api.deletePatientVisitPrep(id);
+                window.toast.info('Preparation note deleted');
+                loadPrepNotes();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to delete note');
+            }
+        }
+
+        function printNote(symptoms, questions) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>MediCareX Doctor Visit Briefing</title>
+                    <style>
+                        body { font-family: system-ui, sans-serif; padding: 2rem; line-height: 1.6; color: #1e293b; }
+                        h1 { color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+                        .section { margin-top: 1.5rem; }
+                        .label { font-weight: bold; color: #475569; }
+                    </style>
+                </head>
+                <body>
+                    <h1>MediCareX — Consultation Preparation Sheet</h1>
+                    <div class="section"><span class="label">Symptoms:</span> ${symptoms}</div>
+                    <div class="section"><span class="label">Questions for Doctor:</span><br><pre style="font-family: inherit;">${questions}</pre></div>
+                    <div class="section" style="margin-top: 3rem; border-top: 1px dashed #94a3b8; padding-top: 1rem;">
+                        <span class="label">Doctor's Clinical Notes / Advice:</span>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

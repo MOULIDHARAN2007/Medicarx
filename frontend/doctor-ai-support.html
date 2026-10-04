@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Clinical Decision Support — MediCareX Doctor</title>
+    <meta name="description" content="AI-assisted clinical decision support, differential considerations, red-flag screening, and patient safety risk analysis for physicians.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .ai-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .ai-card:hover {
+            border-color: #CBD5E1;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
+        .ai-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid #F1F5F9;
+            padding-bottom: 0.5rem;
+        }
+        .ai-card-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0;
+        }
+        .ai-list {
+            margin: 0;
+            padding-left: 1.25rem;
+            font-size: 13px;
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+        .ai-list li {
+            margin-bottom: 0.35rem;
+        }
+        .ai-list li strong {
+            color: var(--navy);
+        }
+        .vitals-pill {
+            background: #F1F5F9;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            padding: 0.35rem 0.65rem;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Shared Patient Context Header -->
+                <div id="patient-context-banner"></div>
+
+                <!-- Prominent Clinical Safety Disclaimer -->
+                <div class="p-3 mb-4 flex items-start gap-3" style="background: #EFF6FF; border: 1px solid #BFDBFE; border-left: 4px solid var(--primary-blue); border-radius: 8px;">
+                    <span style="font-size: 1.25rem; line-height: 1;">✨</span>
+                    <div>
+                        <strong style="font-size: 13px; color: #1E40AF;">Physician Clinical Decision Support Advisory:</strong>
+                        <p style="font-size: 12px; color: #1E3A8A; margin: 0.2rem 0 0 0;">
+                            AI Clinical Decision Support is an assistive analytical tool designed to synthesize presenting symptoms, screen for red-flag warning signs, cross-reference electronic health records, and organize differential considerations. It does <strong>not</strong> make diagnoses, alter records, or prescribe medications. All clinical decisions and management remain the sole responsibility of the attending physician.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Clinical Inputs & AI Reasoning Output -->
+                <div class="grid grid-3 gap-4">
+                    <!-- Left: Clinical Input Context (1 Col) -->
+                    <div class="card" style="grid-column: span 1; align-self: start;">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">🩺 Clinical Input</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Presenting complaints, vitals & examination</p>
+                            </div>
+                        </div>
+
+                        <div class="p-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label" for="ai-symptoms-input">Chief Complaints & Symptoms <span class="text-danger">*</span>:</label>
+                                <textarea id="ai-symptoms-input" class="form-textarea" rows="3" placeholder="e.g. Acute sore throat for 3 days, intermittent fever 101°F, fatigue, mild body aches..."></textarea>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label" for="ai-notes-input">Consultation & Exam Notes:</label>
+                                <textarea id="ai-notes-input" class="form-textarea" rows="3" placeholder="e.g. Erythematous pharynx, bilateral tonsillar enlargement, no exudates, chest clear on auscultation..."></textarea>
+                            </div>
+
+                            <!-- Optional Encounter Vitals -->
+                            <div class="mb-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem;">
+                                <span style="font-size: 12px; font-weight: 700; color: var(--navy); display: block; margin-bottom: 0.5rem;">
+                                    📊 Optional Encounter Vitals:
+                                </span>
+                                <div class="grid grid-2 gap-2">
+                                    <div>
+                                        <label for="vital-bp" style="font-size: 11px; color: var(--text-secondary); display: block;">BP (mmHg):</label>
+                                        <input type="text" id="vital-bp" class="form-input" style="padding: 0.35rem 0.5rem; font-size: 12px;" placeholder="120/80">
+                                    </div>
+                                    <div>
+                                        <label for="vital-temp" style="font-size: 11px; color: var(--text-secondary); display: block;">Temp (°F):</label>
+                                        <input type="text" id="vital-temp" class="form-input" style="padding: 0.35rem 0.5rem; font-size: 12px;" placeholder="98.6">
+                                    </div>
+                                    <div>
+                                        <label for="vital-hr" style="font-size: 11px; color: var(--text-secondary); display: block;">Pulse (bpm):</label>
+                                        <input type="text" id="vital-hr" class="form-input" style="padding: 0.35rem 0.5rem; font-size: 12px;" placeholder="76">
+                                    </div>
+                                    <div>
+                                        <label for="vital-spo2" style="font-size: 11px; color: var(--text-secondary); display: block;">SpO2 (%):</label>
+                                        <input type="text" id="vital-spo2" class="form-input" style="padding: 0.35rem 0.5rem; font-size: 12px;" placeholder="98">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2 mt-4">
+                                <button id="btn-generate-ai" class="btn btn-primary w-full justify-center" onclick="generateAiSupport()">
+                                    ✨ Generate Clinical Analysis
+                                </button>
+                                <button class="btn btn-outline w-full justify-center" onclick="clearAiInputs()">
+                                    Clear Inputs
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Structured Clinical Reasoning Output (2 Cols) -->
+                    <div class="card" style="grid-column: span 2;">
+                        <div class="card-header flex justify-between items-center flex-wrap gap-2">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">🔬 Dynamic Clinical Analysis</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Synthesized clinical reasoning cross-referenced against MySQL EHR</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="ai-category-badge" class="badge" style="display: none; background: #3B82F6; color: #FFF; font-weight: 700;"></span>
+                                <span id="ai-status-badge" class="badge badge-gray">Ready for Analysis</span>
+                            </div>
+                        </div>
+
+                        <div id="ai-output-container" class="p-4">
+                            <div style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted);">
+                                <div style="font-size: 3rem; margin-bottom: 0.75rem;">🧠</div>
+                                <h4 style="margin: 0; color: var(--navy); font-size: 1.15rem;">AI Clinical Decision Support</h4>
+                                <p style="font-size: 13px; max-width: 480px; margin: 0.5rem auto 1.25rem auto; color: var(--text-secondary); line-height: 1.5;">
+                                    Enter the patient's presenting symptoms or examination notes on the left and click <strong>Generate Clinical Analysis</strong> to evaluate differential considerations, red-flag screening, patient-specific risk factors, and recommended clinical evaluation.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/doctor-context.js"></script>
+    <script>
+        let currentPatientId = 1;
+        let currentPatientData = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-ai-support');
+            currentPatientId = window.DoctorContext.getSelectedPatientId();
+            loadPatientContext(currentPatientId);
+        });
+
+        async function loadPatientContext(patientId) {
+            currentPatientId = patientId;
+            try {
+                const res = await window.api.getDoctorPatientOverview(patientId);
+                const data = res.data || {};
+                currentPatientData = data.patient || {};
+
+                // Render Shared Patient Header
+                window.DoctorContext.renderPatientHeader('patient-context-banner', currentPatientData, 'ai-support');
+                window.DoctorContext.loadPatientsRoster('doctor-patient-switcher', currentPatientId, (newId) => {
+                    loadPatientContext(newId);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function generateAiSupport() {
+            const symptoms = document.getElementById('ai-symptoms-input').value.trim();
+            const notes = document.getElementById('ai-notes-input').value.trim();
+
+            if (!symptoms && !notes) {
+                window.toast.warning('Please enter clinical symptoms or consultation notes before running analysis.');
+                return;
+            }
+
+            const bp = document.getElementById('vital-bp').value.trim();
+            const temp = document.getElementById('vital-temp').value.trim();
+            const hr = document.getElementById('vital-hr').value.trim();
+            const spo2 = document.getElementById('vital-spo2').value.trim();
+
+            const vitals = {};
+            if (bp) vitals.bloodPressure = bp;
+            if (temp) vitals.temperature = temp;
+            if (hr) vitals.heartRate = hr;
+            if (spo2) vitals.oxygenSaturation = spo2;
+
+            const btn = document.getElementById('btn-generate-ai');
+            const statusBadge = document.getElementById('ai-status-badge');
+            const catBadge = document.getElementById('ai-category-badge');
+            const container = document.getElementById('ai-output-container');
+
+            // Reset UI state and show loading state
+            btn.disabled = true;
+            btn.innerHTML = '✨ Analyzing Clinical Data...';
+            statusBadge.className = 'badge badge-warning';
+            statusBadge.innerText = 'Analyzing';
+            catBadge.style.display = 'none';
+
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted);">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.75rem; animation: spin 1.5s linear infinite;">⏳</div>
+                    <h4 style="margin: 0; color: var(--navy); font-size: 1.1rem;">Analyzing Current Clinical Input...</h4>
+                    <p style="font-size: 12.5px; max-width: 420px; margin: 0.4rem auto 0 auto; color: var(--text-secondary);">
+                        Cross-referencing reported symptoms, consultation notes, encounter vitals, and patient electronic health records.
+                    </p>
+                </div>
+            `;
+
+            try {
+                const res = await window.api.runDoctorAiClinicalSupport(currentPatientId, symptoms, notes, vitals);
+                const result = res.data || {};
+
+                statusBadge.className = 'badge badge-success';
+                statusBadge.innerText = 'Analysis Complete';
+
+                if (result.primaryCategory) {
+                    catBadge.style.display = 'inline-block';
+                    catBadge.innerText = result.primaryCategory;
+                }
+
+                renderEnhancedAiResults(result);
+                window.toast.success('Clinical decision support analysis generated.');
+            } catch (err) {
+                statusBadge.className = 'badge badge-danger';
+                statusBadge.innerText = 'Analysis Failed';
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 1rem; color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px;">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+                        <h4 style="margin: 0; color: #991B1B; font-size: 1.05rem;">Clinical analysis could not be generated. Please try again.</h4>
+                        <p style="font-size: 12.5px; color: #B91C1C; margin: 0.4rem 0 1rem 0;">
+                            ${escapeHtml(err.message || 'Server error occurred during clinical analysis.')}
+                        </p>
+                        <button class="btn btn-sm btn-primary" onclick="generateAiSupport()">
+                            🔄 Retry Analysis
+                        </button>
+                    </div>
+                `;
+                window.toast.error(err.message || 'Clinical analysis could not be generated. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '✨ Generate Clinical Analysis';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatListItems(val, defaultHtml) {
+            if (!val) return defaultHtml || '';
+            if (Array.isArray(val)) {
+                if (val.length === 0) return defaultHtml || '';
+                return val.map(item => {
+                    let cleaned = escapeHtml(String(item)).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return `<li>${cleaned}</li>`;
+                }).join('');
+            }
+            if (typeof val === 'string') {
+                const lines = val.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return defaultHtml || '';
+                return lines.map(l => {
+                    let cleaned = l.replace(/^[•\-\*]\s*/, '');
+                    cleaned = escapeHtml(cleaned).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return `<li>${cleaned}</li>`;
+                }).join('');
+            }
+            return `<li>${escapeHtml(String(val))}</li>`;
+        }
+
+        function renderEnhancedAiResults(data) {
+            const container = document.getElementById('ai-output-container');
+            const disclaimer = data.disclaimer || 'AI Clinical Decision Support is an assistive analytical tool. It does not make diagnoses, alter records, or prescribe medications. Clinical decisions remain the responsibility of the attending physician.';
+
+            let urgencyColor = '#2563EB';
+            let urgencyBg = '#EFF6FF';
+            let urgencyBorder = '#BFDBFE';
+            if (data.urgencyLevel === 'URGENT') {
+                urgencyColor = '#DC2626';
+                urgencyBg = '#FEF2F2';
+                urgencyBorder = '#FECACA';
+            } else if (data.urgencyLevel === 'SEMI_URGENT') {
+                urgencyColor = '#D97706';
+                urgencyBg = '#FFFBEB';
+                urgencyBorder = '#FDE68A';
+            }
+
+            const analyzed = data.analyzedInput || {};
+            const vitalsMap = analyzed.vitals || {};
+
+            container.innerHTML = `
+                <div class="flex flex-col gap-3.5">
+
+                    <!-- Top Bar: Category & Urgency Rating -->
+                    <div class="p-3 flex justify-between items-center flex-wrap gap-2" style="background: ${urgencyBg}; border: 1px solid ${urgencyBorder}; border-radius: 8px;">
+                        <div>
+                            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: ${urgencyColor};">Primary Clinical Focus</span>
+                            <div style="font-size: 15px; font-weight: 700; color: var(--navy);">${escapeHtml(data.primaryCategory || 'General Clinical Review')}</div>
+                        </div>
+                        <div class="text-right">
+                            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary);">Urgency Stratification</span>
+                            <div>
+                                <span class="badge" style="background: ${urgencyColor}; color: #FFF; font-weight: 700; font-size: 11.5px;">
+                                    ${escapeHtml(data.urgencyLevel || 'ROUTINE')}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analyzed Case Input Echo (Doctor Verification Panel) -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
+                        <div class="flex items-center justify-between mb-2">
+                            <strong style="font-size: 12px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px;">
+                                📋 Analyzed Case Information
+                            </strong>
+                            <span class="badge badge-gray" style="font-size: 10.5px;">
+                                Patient: ${escapeHtml(data.patientName || 'Selected Patient')} (${escapeHtml(data.patientAge || 'Adult')}, ${escapeHtml(data.patientGender || '')})
+                            </span>
+                        </div>
+                        <div class="grid grid-2 gap-2" style="font-size: 12px; color: var(--text-main);">
+                            <div>
+                                <strong style="color: var(--navy);">Chief Complaints:</strong>
+                                <div style="color: #334155; margin-top: 2px;">${escapeHtml(analyzed.symptoms || 'Not provided')}</div>
+                            </div>
+                            <div>
+                                <strong style="color: var(--navy);">Consultation Notes:</strong>
+                                <div style="color: #334155; margin-top: 2px;">${escapeHtml(analyzed.consultationNotes || 'Not provided')}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2 pt-2 flex flex-wrap gap-2 items-center" style="border-top: 1px dashed #E2E8F0; font-size: 11.5px;">
+                            <span style="color: var(--text-secondary); font-weight: 600;">Encounter Vitals:</span>
+                            <span class="vitals-pill">BP: ${escapeHtml(vitalsMap.bloodPressure || 'Not provided')}</span>
+                            <span class="vitals-pill">Temp: ${escapeHtml(vitalsMap.temperature || 'Not provided')}</span>
+                            <span class="vitals-pill">Pulse: ${escapeHtml(vitalsMap.heartRate || 'Not provided')}</span>
+                            <span class="vitals-pill">SpO2: ${escapeHtml(vitalsMap.oxygenSaturation || 'Not provided')}</span>
+                        </div>
+                    </div>
+
+                    <!-- [1] Clinical Summary Card -->
+                    <div class="ai-card" style="border-left: 4px solid #2563EB;">
+                        <div class="ai-card-header">
+                            <h4 class="ai-card-title"><span>📋</span> [1] Clinical Summary</h4>
+                            <span class="badge badge-gray" style="font-size: 11px;">Case Synthesis</span>
+                        </div>
+                        <p style="font-size: 13.5px; color: var(--navy); line-height: 1.6; margin: 0;">
+                            ${escapeHtml(data.clinicalSummary || '')}
+                        </p>
+                    </div>
+
+                    <!-- [2] Key Symptoms & [3] Symptom Pattern Grid -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>🔍</span> [2] Key Symptoms & Findings</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Reported</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.keySymptoms, '<li>No distinct key symptoms extracted.</li>')}
+                            </ul>
+                        </div>
+
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>📈</span> [3] Symptom Pattern Analysis</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Trajectory</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.symptomPattern, '<li>Standard clinical trajectory.</li>')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- [4] Differential Considerations -->
+                    <div class="ai-card" style="border-left: 4px solid #10B981;">
+                        <div class="ai-card-header">
+                            <h4 class="ai-card-title"><span>🔬</span> [4] Differential Considerations</h4>
+                            <span class="badge badge-success" style="font-size: 11px;">Ranked Possibilities</span>
+                        </div>
+                        <ul class="ai-list" style="font-size: 13.5px;">
+                            ${formatListItems(data.differentialConsiderations, '<li>General clinical assessment indicated.</li>')}
+                        </ul>
+                    </div>
+
+                    <!-- [5] Red-Flag Screening -->
+                    <div class="ai-card" style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B;">
+                        <div class="ai-card-header" style="border-bottom-color: #FEF3C7;">
+                            <h4 class="ai-card-title" style="color: #92400E;"><span>🚩</span> [5] Red-Flag Screening Checklist</h4>
+                            <span class="badge" style="background: #F59E0B; color: #FFF; font-size: 11px; font-weight: 700;">Safety Screen</span>
+                        </div>
+                        <ul class="ai-list" style="color: #78350F;">
+                            ${formatListItems(data.redFlagScreening, '<li>No explicit red flags reported in input.</li>')}
+                        </ul>
+                    </div>
+
+                    <!-- [6] Vital Signs & [7] Relevant History Grid -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>🩺</span> [6] Vital Signs Interpretation</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Encounter</span>
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">
+                                ${escapeHtml(data.vitalSignsInterpretation || 'Vital signs not provided.').replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>🗂️</span> [7] Relevant Patient History</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">MySQL EHR</span>
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">
+                                ${escapeHtml(data.relevantPatientHistory || '').replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [8] Medication Review & [9] Allergy / Safety Considerations -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card" style="background: #F8FAFC;">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>💊</span> [8] Medication Review</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Active Rx</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.medicationReview, '<li>No active prescriptions documented.</li>')}
+                            </ul>
+                        </div>
+
+                        <div class="ai-card" style="background: #EFF6FF; border: 1px solid #BFDBFE;">
+                            <div class="ai-card-header" style="border-bottom-color: #DBEAFE;">
+                                <h4 class="ai-card-title" style="color: #1E40AF;"><span>🛡️</span> [9] Allergy / Safety Considerations</h4>
+                                <span class="badge badge-primary" style="font-size: 11px;">Verification</span>
+                            </div>
+                            <ul class="ai-list" style="color: #1E3A8A;">
+                                ${formatListItems(data.allergySafetyConsiderations, '<li>Verify allergy status prior to medication administration.</li>')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- [10] Recommended Clinical Evaluation & [11] Decision Points -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>🩺</span> [10] Recommended Clinical Evaluation</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Targeted Workup</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.recommendedClinicalEvaluation, '<li>Focused physical exam recommended.</li>')}
+                            </ul>
+                        </div>
+
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>⚡</span> [11] Clinical Decision Points</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Management Rules</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.clinicalDecisionPoints, '<li>Monitor clinical response within 48-72h.</li>')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- [12] Urgency Assessment & [13] Follow-Up Considerations -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>⏱️</span> [12] Severity / Urgency Assessment</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Classification</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-main); line-height: 1.5; margin: 0;">
+                                ${escapeHtml(data.severityUrgencyAssessment || '')}
+                            </p>
+                        </div>
+
+                        <div class="ai-card" style="background: #F0FDF4; border: 1px solid #BBF7D0;">
+                            <div class="ai-card-header" style="border-bottom-color: #DCFCE7;">
+                                <h4 class="ai-card-title" style="color: #166534;"><span>📅</span> [13] Follow-Up Considerations</h4>
+                                <span class="badge badge-success" style="font-size: 11px;">Next Steps</span>
+                            </div>
+                            <ul class="ai-list" style="color: #14532D;">
+                                ${formatListItems(data.followUpConsiderations, '<li>Schedule outpatient follow-up in 3-5 days.</li>')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- [14] Risk Factors & [15] Questions for Doctor -->
+                    <div class="grid grid-2 gap-3">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>👤</span> [14] Patient-Specific Risk Factors</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Comorbidities</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.patientSpecificRiskFactors, '<li>No specific high risk factors identified.</li>')}
+                            </ul>
+                        </div>
+
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <h4 class="ai-card-title"><span>❓</span> [15] Clinical Questions for Doctor</h4>
+                                <span class="badge badge-gray" style="font-size: 11px;">Missing Details</span>
+                            </div>
+                            <ul class="ai-list">
+                                ${formatListItems(data.questionsForDoctor, '<li>Clarify timeline and progression.</li>')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Disclaimer -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px dashed var(--border); border-radius: 8px; font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
+                        🛡️ <strong>Advisory Disclaimer:</strong> ${escapeHtml(disclaimer)}
+                    </div>
+
+                    <!-- Quick Prescription Safety Checker Action Link -->
+                    <div class="flex items-center justify-between p-3 mt-1" style="background: #F1F5F9; border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-size: 12.5px; color: var(--text-secondary); font-weight: 600;">Cross-check candidate medications against patient EHR?</span>
+                        <a href="/doctor-prescription-safety.html?patientId=${currentPatientId || 1}" class="btn btn-sm btn-primary">
+                            🛡️ Check Prescription Safety →
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        function clearAiInputs() {
+            document.getElementById('ai-symptoms-input').value = '';
+            document.getElementById('ai-notes-input').value = '';
+            document.getElementById('vital-bp').value = '';
+            document.getElementById('vital-temp').value = '';
+            document.getElementById('vital-hr').value = '';
+            document.getElementById('vital-spo2').value = '';
+        }
+    </script>
+</body>
+</html>
+

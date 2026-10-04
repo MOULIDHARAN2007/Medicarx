@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Availability & Live Map — MediCareX</title>
+    <meta name="description" content="Interactive geolocation map showing nearby licensed pharmacies with real-time medicine stock and prices.">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .location-control-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 0.875rem 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .location-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--navy);
+        }
+
+        .location-dot-pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #10b981;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: locPulse 1.8s infinite;
+        }
+
+        .location-dot-pulse.warning {
+            background-color: #f59e0b;
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+        }
+
+        .location-dot-pulse.error {
+            background-color: #ef4444;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        }
+
+        .location-dot-pulse.loading {
+            background-color: #3b82f6;
+            animation: locPulse 1s infinite;
+        }
+
+        @keyframes locPulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .user-pulse-marker {
+            width: 22px;
+            height: 22px;
+            background: #2563eb;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.35);
+            animation: userLocPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes userLocPulse {
+            0% { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.1); }
+            100% { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4); }
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius-lg);
+            padding: 0.25rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .quick-loc-pill {
+            padding: 0.25rem 0.6rem;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 20px;
+            background: #f1f5f9;
+            color: var(--navy);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-loc-pill:hover {
+            background: var(--primary-blue);
+            color: #ffffff;
+            border-color: var(--primary-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container" style="padding-bottom: 1rem;">
+                <div class="page-header" style="margin-bottom: 0.75rem;">
+                    <div>
+                        <h1 class="page-title" id="map-page-title">Pharmacy Availability & Live Map</h1>
+                        <p class="page-subtitle" id="map-page-subtitle">Find nearby licensed pharmacies with real-time medicine availability based on your location</p>
+                    </div>
+
+                    <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-sm" id="btn-use-location" onclick="requestUserLocation(true)">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+                            Use My Location
+                        </button>
+                        <select id="radius-select" class="form-select" style="width: auto; padding: 0.4rem 0.85rem; font-size: 13px;" onchange="onRadiusChange()">
+                            <option value="5">Within 5 km</option>
+                            <option value="10" selected>Within 10 km (Default)</option>
+                            <option value="25">Within 25 km</option>
+                            <option value="50">Within 50 km</option>
+                            <option value="0">All Pharmacies</option>
+                        </select>
+                        <select id="medicine-picker" class="form-select" style="width: auto; padding: 0.4rem 0.85rem; font-size: 13px;" onchange="onMedicineChange()">
+                            <option value="0">All Medicines</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Location Status & Manual Search Banner -->
+                <div class="location-control-bar" id="location-bar">
+                    <div class="location-status-badge">
+                        <span class="location-dot-pulse loading" id="location-dot"></span>
+                        <span id="location-text">Requesting browser location permission...</span>
+                    </div>
+
+                    <!-- Manual Area Search Fallback -->
+                    <div class="flex items-center gap-2" style="flex: 1; max-width: 480px; justify-content: flex-end; flex-wrap: wrap;">
+                        <div class="topbar-search" style="width: 100%; max-width: 320px; height: 36px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="manual-loc-in" placeholder="Enter area, city or pincode (e.g. Indiranagar)..." onkeydown="if(event.key==='Enter') searchManualLocation()" />
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btn-manual-search" onclick="searchManualLocation()" style="height: 36px; padding: 0 0.85rem;">Find</button>
+                    </div>
+                </div>
+
+                <!-- Quick Location Suggestions (Shown when location is denied/custom) -->
+                <div id="quick-locations-bar" style="display: none; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                    <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Quick Areas:</span>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('indiranagar')">Indiranagar (560038)</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('koramangala')">Koramangala (560034)</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('mg road')">MG Road / CBD</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('hsr layout')">HSR Layout</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('whitefield')">Whitefield</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('malleshwaram')">Malleshwaram</button>
+                    <button class="quick-loc-pill" onclick="quickSelectLocation('chennai')">Chennai</button>
+                </div>
+
+                <!-- 2-Column Split: Map on Left, Pharmacy List on Right -->
+                <div class="map-split-container">
+                    <!-- Left: Leaflet OpenStreetMap -->
+                    <div id="leaflet-map"></div>
+
+                    <!-- Right: Pharmacy List Results Panel -->
+                    <div class="pharmacy-list-panel">
+                        <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                            <span style="font-size: 13px; font-weight: 700; color: var(--navy);" id="pharmacy-count-header">Searching Pharmacies...</span>
+                            <span style="font-size: 11px; color: var(--text-muted);" id="pharmacy-sort-header">Sorted by Nearest</span>
+                        </div>
+                        <div class="pharmacy-list-scroll" id="pharmacies-list-container">
+                            <div style="padding: 2.5rem 1.5rem; text-align: center; color: var(--text-muted);">
+                                <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">📍</div>
+                                <strong style="font-size: 14px; color: var(--navy); display: block; margin-bottom: 0.25rem;">Acquiring Location</strong>
+                                <p style="font-size: 12px;">Requesting GPS coordinates and loading nearby pharmacies...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let mapInstance = null;
+        let markers = [];
+        let userLocationMarker = null;
+        let currentMedicineId = 0;
+        let currentRadiusKm = 10;
+        let pharmaciesData = [];
+
+        // Reference coordinates
+        let userCoords = {
+            latitude: 12.9716,
+            longitude: 77.5946
+        };
+        let isLocationDetected = false;
+        let currentSearchAreaName = "Bangalore Center";
+        let locationPermissionState = "prompt"; // prompt | requesting | granted | denied | unavailable | timeout | manual
+
+        // Known local area coordinates for instant reliable fallback & geocoding
+        const KNOWN_AREAS = {
+            'indiranagar': { lat: 12.9784, lng: 77.6408, name: 'Indiranagar, Bangalore' },
+            'cmh road': { lat: 12.9798, lng: 77.6360, name: 'CMH Road, Indiranagar' },
+            '100 feet road': { lat: 12.9784, lng: 77.6408, name: '100 Feet Rd, Indiranagar' },
+            'koramangala': { lat: 12.9345, lng: 77.6245, name: 'Koramangala, Bangalore' },
+            'mg road': { lat: 12.9756, lng: 77.6067, name: 'MG Road, Bangalore' },
+            'cbd': { lat: 12.9756, lng: 77.6067, name: 'CBD Area, Bangalore' },
+            'hal': { lat: 12.9660, lng: 77.6499, name: 'HAL 2nd Stage, Bangalore' },
+            'hsr layout': { lat: 12.9121, lng: 77.6446, name: 'HSR Layout, Bangalore' },
+            'hsr': { lat: 12.9121, lng: 77.6446, name: 'HSR Layout, Bangalore' },
+            'whitefield': { lat: 12.9864, lng: 77.7345, name: 'Whitefield, Bangalore' },
+            'malleshwaram': { lat: 13.0035, lng: 77.5701, name: 'Malleshwaram, Bangalore' },
+            'jayanagar': { lat: 12.9308, lng: 77.5838, name: 'Jayanagar, Bangalore' },
+            'bangalore': { lat: 12.9716, lng: 77.5946, name: 'Bengaluru, Karnataka' },
+            'bengaluru': { lat: 12.9716, lng: 77.5946, name: 'Bengaluru, Karnataka' },
+            'chennai': { lat: 13.0827, lng: 80.2707, name: 'Chennai, Tamil Nadu' },
+            't nagar': { lat: 13.0418, lng: 80.2341, name: 'T. Nagar, Chennai' },
+            'anna nagar': { lat: 13.0850, lng: 80.2100, name: 'Anna Nagar, Chennai' },
+            'mumbai': { lat: 19.0760, lng: 72.8777, name: 'Mumbai, Maharashtra' },
+            'delhi': { lat: 28.6139, lng: 77.2090, name: 'New Delhi, Delhi' },
+            '560038': { lat: 12.9784, lng: 77.6408, name: 'Indiranagar (560038)' },
+            '560034': { lat: 12.9345, lng: 77.6245, name: 'Koramangala (560034)' },
+            '560001': { lat: 12.9756, lng: 77.6067, name: 'MG Road (560001)' },
+            '560008': { lat: 12.9660, lng: 77.6499, name: 'HAL / Domlur (560008)' },
+            '560102': { lat: 12.9121, lng: 77.6446, name: 'HSR Layout (560102)' },
+            '560066': { lat: 12.9864, lng: 77.7345, name: 'Whitefield (560066)' },
+            '560003': { lat: 13.0035, lng: 77.5701, name: 'Malleshwaram (560003)' },
+            '600017': { lat: 13.0418, lng: 80.2341, name: 'T. Nagar (600017)' },
+            '600040': { lat: 13.0850, lng: 80.2100, name: 'Anna Nagar (600040)' },
+            '600001': { lat: 13.0827, lng: 80.2707, name: 'Chennai Central (600001)' }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.Shell.init('pharmacies');
+
+            const params = new URLSearchParams(window.location.search);
+            currentMedicineId = parseInt(params.get('medicineId')) || 0;
+
+            initMap();
+            await loadMedicinesDropdown();
+
+            // Request user location automatically on page open
+            requestUserLocation(false);
+        });
+
+        function initMap() {
+            if (mapInstance) return;
+            mapInstance = L.map('leaflet-map').setView([userCoords.latitude, userCoords.longitude], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(mapInstance);
+        }
+
+        function setLocationUIState(state, info) {
+            locationPermissionState = state;
+            const dot = document.getElementById('location-dot');
+            const text = document.getElementById('location-text');
+            const btn = document.getElementById('btn-use-location');
+            const quickBar = document.getElementById('quick-locations-bar');
+
+            if (!dot || !text) return;
+            dot.className = 'location-dot-pulse';
+
+            if (state === 'requesting') {
+                dot.classList.add('loading');
+                text.innerText = 'Requesting browser location permission...';
+                if (quickBar) quickBar.style.display = 'none';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Locating...`;
+                }
+            } else if (state === 'granted') {
+                dot.classList.remove('warning', 'error', 'loading');
+                text.innerHTML = `<strong>Live GPS Location:</strong> Lat ${info.latitude.toFixed(4)}, Lng ${info.longitude.toFixed(4)}`;
+                if (quickBar) quickBar.style.display = 'none';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg> GPS Active`;
+                }
+            } else if (state === 'manual') {
+                dot.classList.add('warning');
+                text.innerHTML = `<strong>Searched Area:</strong> ${info || 'Custom Location'} (within ${currentRadiusKm > 0 ? currentRadiusKm + ' km' : 'all'})`;
+                if (quickBar) quickBar.style.display = 'flex';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg> Use My Location`;
+                }
+            } else if (state === 'denied') {
+                dot.classList.add('error');
+                text.innerHTML = `Location permission was denied. Enter your city, area, or pincode to find nearby pharmacies.`;
+                if (quickBar) quickBar.style.display = 'flex';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg> Retry Location`;
+                }
+            } else if (state === 'unavailable' || state === 'timeout') {
+                dot.classList.add('warning');
+                text.innerHTML = info || `Location unavailable. Enter city, area, or pincode to search.`;
+                if (quickBar) quickBar.style.display = 'flex';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg> Use My Location`;
+                }
+            }
+        }
+
+        function requestUserLocation(isExplicitClick = false) {
+            if (!navigator.geolocation) {
+                setLocationUIState('unavailable', 'Geolocation is not supported by your browser.');
+                if (isExplicitClick) window.toast.warning('Geolocation is not supported on this browser.');
+                loadPharmacies();
+                return;
+            }
+
+            setLocationUIState('requesting');
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 30000
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userCoords = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    isLocationDetected = true;
+                    currentSearchAreaName = "Your Current Location";
+                    setLocationUIState('granted', userCoords);
+                    if (isExplicitClick) window.toast.success('Your location was detected successfully!');
+                    loadPharmacies();
+                },
+                (error) => {
+                    isLocationDetected = false;
+                    let msg = 'Location access unavailable.';
+                    if (error.code === error.PERMISSION_DENIED) {
+                        setLocationUIState('denied');
+                        msg = 'Location permission was denied. Please enter your city, area, or pincode.';
+                    } else if (error.code === error.TIMEOUT) {
+                        setLocationUIState('timeout', 'Location request timed out. Please enter area manually.');
+                        msg = 'Location request timed out. You can enter your area manually.';
+                    } else {
+                        setLocationUIState('unavailable', 'Position unavailable. Please enter area manually.');
+                    }
+                    if (isExplicitClick) window.toast.info(msg);
+                    loadPharmacies();
+                },
+                options
+            );
+        }
+
+        function quickSelectLocation(areaKey) {
+            const match = KNOWN_AREAS[areaKey.toLowerCase()];
+            if (match) {
+                const input = document.getElementById('manual-loc-in');
+                if (input) input.value = match.name.split(',')[0];
+                userCoords = { latitude: match.lat, longitude: match.lng };
+                currentSearchAreaName = match.name;
+                isLocationDetected = true;
+                setLocationUIState('manual', match.name);
+                window.toast.success(`Location set to ${match.name}`);
+                loadPharmacies();
+            }
+        }
+
+        async function searchManualLocation() {
+            const input = document.getElementById('manual-loc-in');
+            const val = input ? input.value.trim().toLowerCase() : '';
+            if (!val) {
+                window.toast.warning('Please enter an area, city, or pincode.');
+                return;
+            }
+
+            // Check known local areas first
+            if (KNOWN_AREAS[val]) {
+                const match = KNOWN_AREAS[val];
+                userCoords = { latitude: match.lat, longitude: match.lng };
+                currentSearchAreaName = match.name;
+                isLocationDetected = true;
+                setLocationUIState('manual', match.name);
+                window.toast.success(`Location set to ${match.name}`);
+                loadPharmacies();
+                return;
+            }
+
+            // Check if any known area is contained in string
+            for (const key in KNOWN_AREAS) {
+                if (val.includes(key)) {
+                    const match = KNOWN_AREAS[key];
+                    userCoords = { latitude: match.lat, longitude: match.lng };
+                    currentSearchAreaName = match.name;
+                    isLocationDetected = true;
+                    setLocationUIState('manual', match.name);
+                    window.toast.success(`Location set to ${match.name}`);
+                    loadPharmacies();
+                    return;
+                }
+            }
+
+            // Fallback to OpenStreetMap Nominatim Geocoding
+            try {
+                window.toast.info(`Searching for "${val}"...`);
+                const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=1`;
+                const res = await fetch(geoUrl, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+
+                if (data && data.length > 0) {
+                    userCoords = {
+                        latitude: parseFloat(data[0].lat),
+                        longitude: parseFloat(data[0].lon)
+                    };
+                    currentSearchAreaName = data[0].display_name.split(',')[0];
+                    isLocationDetected = true;
+                    setLocationUIState('manual', currentSearchAreaName);
+                    window.toast.success(`Found location: ${currentSearchAreaName}`);
+                    loadPharmacies();
+                } else {
+                    window.toast.warning(`Could not find "${val}". Searching with current area.`);
+                    loadPharmacies();
+                }
+            } catch (e) {
+                console.error('Geocoding error:', e);
+                window.toast.info(`Searching around ${currentSearchAreaName}...`);
+                loadPharmacies();
+            }
+        }
+
+        async function loadMedicinesDropdown() {
+            try {
+                const res = await window.api.getMedicines({ limit: 50 });
+                const picker = document.getElementById('medicine-picker');
+                if (res.data) {
+                    res.data.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.text = `${m.name} (${m.dosage})`;
+                        if (m.id === currentMedicineId) opt.selected = true;
+                        picker.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error('Error loading medicines:', e);
+            }
+        }
+
+        function onMedicineChange() {
+            const picker = document.getElementById('medicine-picker');
+            currentMedicineId = parseInt(picker.value) || 0;
+            loadPharmacies();
+        }
+
+        function onRadiusChange() {
+            const radiusSelect = document.getElementById('radius-select');
+            currentRadiusKm = parseFloat(radiusSelect.value) || 0;
+            loadPharmacies();
+        }
+
+        function setRadiusAndReload(newRadius) {
+            currentRadiusKm = newRadius;
+            const radiusSelect = document.getElementById('radius-select');
+            if (radiusSelect) radiusSelect.value = String(newRadius);
+            loadPharmacies();
+        }
+
+        function focusManualInput() {
+            const input = document.getElementById('manual-loc-in');
+            if (input) {
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        async function loadPharmacies() {
+            const listContainer = document.getElementById('pharmacies-list-container');
+            const countHeader = document.getElementById('pharmacy-count-header');
+            const subtitle = document.getElementById('map-page-subtitle');
+
+            try {
+                const params = {
+                    latitude: userCoords.latitude,
+                    longitude: userCoords.longitude,
+                    radius: currentRadiusKm
+                };
+
+                let res;
+                if (currentMedicineId > 0) {
+                    res = await window.api.getPharmaciesByMedicine(currentMedicineId, params);
+                    subtitle.innerText = `Showing nearby verified pharmacies with real-time stock and pricing for selected medicine`;
+                } else {
+                    res = await window.api.getNearbyPharmacies(params);
+                    subtitle.innerText = `Find nearby licensed pharmacies with real-time medicine availability`;
+                }
+
+                pharmaciesData = res.data || [];
+                countHeader.innerText = `${pharmaciesData.length} Nearby ${pharmaciesData.length === 1 ? 'Pharmacy' : 'Pharmacies'}`;
+
+                // Clear previous markers
+                markers.forEach(m => mapInstance.removeLayer(m));
+                markers = [];
+                if (userLocationMarker) {
+                    mapInstance.removeLayer(userLocationMarker);
+                    userLocationMarker = null;
+                }
+
+                // Add "You Are Here" / Search center location marker
+                const userIcon = L.divIcon({
+                    className: 'user-marker-wrapper',
+                    html: `<div class="user-pulse-marker" title="${isLocationDetected ? 'Your Location' : 'Search Center'}"></div>`,
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                });
+
+                userLocationMarker = L.marker([userCoords.latitude, userCoords.longitude], { icon: userIcon }).addTo(mapInstance);
+                userLocationMarker.bindPopup(`
+                    <div style="font-family: var(--font-family); text-align: center; padding: 4px;">
+                        <strong style="color: #1e3a8a; font-size: 13px;">📍 ${isLocationDetected && locationPermissionState === 'granted' ? 'You Are Here' : currentSearchAreaName}</strong><br>
+                        <span style="font-size: 11px; color: #64748b;">${userCoords.latitude.toFixed(4)}, ${userCoords.longitude.toFixed(4)}</span>
+                    </div>
+                `);
+
+                const boundsPoints = [[userCoords.latitude, userCoords.longitude]];
+
+                if (pharmaciesData.length === 0) {
+                    mapInstance.setView([userCoords.latitude, userCoords.longitude], 14);
+                    listContainer.innerHTML = `
+                        <div style="padding: 2.5rem 1.5rem; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📍</div>
+                            <strong style="font-size: 14px; color: var(--navy); display: block; margin-bottom: 0.35rem;">No pharmacies found within ${currentRadiusKm > 0 ? currentRadiusKm + ' km' : 'this area'}</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 1.25rem;">Try expanding your search distance or searching a different area.</p>
+                            <div class="flex gap-2 justify-center" style="flex-wrap: wrap;">
+                                <button class="btn btn-sm btn-primary" onclick="setRadiusAndReload(25)">Search within 25 km</button>
+                                <button class="btn btn-sm btn-outline" onclick="setRadiusAndReload(0)">View All Pharmacies</button>
+                                <button class="btn btn-sm btn-secondary" onclick="focusManualInput()">Enter Another Location</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render Pharmacy List Cards
+                listContainer.innerHTML = pharmaciesData.map((p, idx) => {
+                    const statusClass = p.medicineStockStatus === 'In Stock' ? 'badge-success' 
+                                      : (p.medicineStockStatus === 'Low Stock' ? 'badge-warning' 
+                                      : (p.medicineStockStatus === 'Out of Stock' ? 'badge-danger' : 'badge-success'));
+                    
+                    const displayStatus = p.medicineStockStatus 
+                                        ? (p.medicineStockStatus + (p.medicineStockQty > 0 ? ` (${p.medicineStockQty} units)` : '')) 
+                                        : (p.is24Hours ? '24/7 Open' : 'Open');
+
+                    return `
+                        <div class="pharmacy-map-item" id="pharm-item-${p.id}" onclick="focusPharmacy(${idx})">
+                            <div class="flex justify-between items-start" style="margin-bottom: 0.35rem;">
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 700; color: var(--navy);">${p.pharmacyName}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${p.address}, ${p.city}</div>
+                                </div>
+                                <span class="badge ${statusClass}">
+                                    <span class="badge-dot"></span>
+                                    ${displayStatus}
+                                </span>
+                            </div>
+
+                            <div class="flex justify-between items-center" style="margin-top: 0.5rem; font-size: 12px;">
+                                <div style="color: var(--primary-blue); font-weight: 600;">
+                                    📍 ${p.distanceKm != null ? p.distanceKm + ' km away' : 'Nearby'} • ★ ${p.rating || 4.8}
+                                </div>
+                                ${p.medicinePrice ? `<div style="font-weight: 700; color: var(--navy); font-size: 13px;">₹${p.medicinePrice.toFixed(2)}</div>` : ''}
+                            </div>
+
+                            <div class="flex gap-2" style="margin-top: 0.75rem;">
+                                <button class="btn btn-sm btn-outline w-full" onclick="event.stopPropagation(); getDirections(${p.latitude}, ${p.longitude})">
+                                    Get Directions
+                                </button>
+                                <button class="btn btn-sm btn-primary w-full" onclick="event.stopPropagation(); focusPharmacy(${idx})">
+                                    View on Map
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Render Pharmacy Leaflet Markers
+                pharmaciesData.forEach((p, idx) => {
+                    boundsPoints.push([p.latitude, p.longitude]);
+
+                    const marker = L.marker([p.latitude, p.longitude]).addTo(mapInstance);
+                    
+                    const stockHtml = p.medicineStockStatus 
+                        ? `<div style="margin: 4px 0; font-size: 12px; font-weight: 600; color: ${p.medicineStockStatus === 'In Stock' ? '#10b981' : (p.medicineStockStatus === 'Low Stock' ? '#f59e0b' : '#ef4444')};">
+                            Stock: ${p.medicineStockStatus} ${p.medicineStockQty > 0 ? `(${p.medicineStockQty} available)` : ''} ${p.medicinePrice ? `• ₹${p.medicinePrice.toFixed(2)}` : ''}
+                           </div>` 
+                        : '';
+
+                    const popupContent = `
+                        <div style="font-family: var(--font-family); min-width: 210px; padding: 2px;">
+                            <strong style="color: #0f172a; font-size: 14px;">${p.pharmacyName}</strong><br>
+                            <span style="font-size: 11px; font-weight: 600; color: #2563eb;">📍 ${p.distanceKm} km away • ★ ${p.rating || 4.8}</span><br>
+                            <span style="font-size: 12px; color: #475569;">${p.address}, ${p.city}</span><br>
+                            <span style="font-size: 11px; color: #059669; font-weight: 600;">🕒 ${p.is24Hours ? '24 Hours Open' : (p.openingHours || '8:00 AM - 10:00 PM')}</span><br>
+                            ${stockHtml}
+                            <div style="display: flex; gap: 6px; margin-top: 8px;">
+                                <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}')" style="flex: 1; padding: 5px 8px; background: #2563eb; color: #fff; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                                    Get Directions
+                                </button>
+                                ${p.phone ? `<button onclick="window.location.href='tel:${p.phone}'" style="padding: 5px 8px; background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Call</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+                    marker.on('click', () => {
+                        highlightPharmacyCard(p.id);
+                    });
+                    markers.push(marker);
+                });
+
+                // Fit map to show user location and all nearby pharmacies
+                if (boundsPoints.length > 1) {
+                    mapInstance.fitBounds(boundsPoints, { padding: [35, 35], maxZoom: 15 });
+                } else {
+                    mapInstance.setView([userCoords.latitude, userCoords.longitude], 14);
+                }
+
+            } catch (err) {
+                console.error('Error loading nearby pharmacies:', err);
+                listContainer.innerHTML = `<div style="padding: 2rem; color: var(--danger); text-align: center;">Error loading nearby pharmacies: ${err.message}</div>`;
+            }
+        }
+
+        function focusPharmacy(index) {
+            const p = pharmaciesData[index];
+            if (!p || !mapInstance) return;
+
+            mapInstance.flyTo([p.latitude, p.longitude], 15, { animate: true, duration: 0.8 });
+            if (markers[index]) {
+                markers[index].openPopup();
+            }
+            highlightPharmacyCard(p.id);
+        }
+
+        function highlightPharmacyCard(id) {
+            document.querySelectorAll('.pharmacy-map-item').forEach(el => el.classList.remove('active'));
+            const card = document.getElementById(`pharm-item-${id}`);
+            if (card) {
+                card.classList.add('active');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function getDirections(lat, lng) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+        }
+    </script>
+</body>
+</html>

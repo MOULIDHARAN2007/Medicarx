@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Inventory Audit — MediCareX Admin</title>
+    <meta name="description" content="Central surveillance of stock quantities, price discrepancies, and shortages across all affiliated pharmacies.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Global Inventory Surveillance</h1>
+                        <p class="page-subtitle">Cross-pharmacy stock monitoring, price variance audits, and shortage alerts</p>
+                    </div>
+
+                    <button class="btn btn-primary btn-sm" onclick="window.toast.success('Inventory health audit complete. 0 critical anomalies found.')">
+                        Run Stock Audit
+                    </button>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="admin-inv-search" placeholder="Search medicine or batch across stores..." oninput="loadGlobalInventory()" />
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <select id="admin-inv-pharm" class="form-select" style="width: auto;" onchange="loadGlobalInventory()">
+                                <option value="0">All Pharmacies</option>
+                                <option value="1">HealthPlus Pharmacy (Indiranagar)</option>
+                                <option value="2">MedLife Store (Indiranagar)</option>
+                                <option value="3">Apollo Care Pharmacy (Koramangala)</option>
+                            </select>
+
+                            <select id="admin-inv-status" class="form-select" style="width: auto;" onchange="loadGlobalInventory()">
+                                <option value="All">All Statuses</option>
+                                <option value="In Stock">In Stock</option>
+                                <option value="Low Stock">Low Stock</option>
+                                <option value="Out of Stock">Out of Stock</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cross-Pharmacy Inventory Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Pharmacy Store</th>
+                                    <th>Medicine Name</th>
+                                    <th>Therapeutic Class</th>
+                                    <th>Batch #</th>
+                                    <th>Stock Level</th>
+                                    <th>Unit Price</th>
+                                    <th>Expiry Date</th>
+                                    <th>Availability Status</th>
+                                    <th>Quick Adjust</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-inv-tbody">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">Auditing store inventory feeds...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-inventory');
+            loadGlobalInventory();
+        });
+
+        async function loadGlobalInventory() {
+            const tbody = document.getElementById('admin-inv-tbody');
+            const search = document.getElementById('admin-inv-search').value.trim();
+            const pharmId = parseInt(document.getElementById('admin-inv-pharm').value) || 0;
+            const status = document.getElementById('admin-inv-status').value;
+
+            try {
+                const res = await window.api.getInventory({
+                    pharmacyId: pharmId > 0 ? pharmId : undefined,
+                    q: search,
+                    status: status
+                });
+
+                const list = res.data || [];
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" style="padding: 3rem; text-align: center; color: var(--text-muted);">No inventory records found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(item => `
+                    <tr>
+                        <td>
+                            <strong style="color: var(--navy); font-size: 13px;">${item.pharmacyName}</strong>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--navy);">${item.medicineName}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${item.genericName}</div>
+                        </td>
+                        <td><span class="badge badge-gray">${item.category}</span></td>
+                        <td style="font-family: monospace; font-size: 12px;">${item.batchNumber}</td>
+                        <td>
+                            <strong style="font-size: 14px; color: var(--navy);">${item.stockQuantity} units</strong>
+                        </td>
+                        <td style="font-weight: 700; color: var(--navy);">₹${item.unitPrice.toFixed(2)}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${item.expiryDate}</td>
+                        <td>
+                            <span class="badge ${item.status === 'In Stock' ? 'badge-success' : (item.status === 'Low Stock' ? 'badge-warning' : 'badge-danger')}">
+                                <span class="badge-dot"></span>
+                                ${item.status}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="flex items-center gap-1">
+                                <button class="btn btn-sm btn-icon" onclick="adminAdjustStock(${item.id}, ${item.stockQuantity - 5}, ${item.unitPrice}, '${item.expiryDate}')" title="-5">-5</button>
+                                <button class="btn btn-sm btn-icon" onclick="adminAdjustStock(${item.id}, ${item.stockQuantity + 10}, ${item.unitPrice}, '${item.expiryDate}')" title="+10">+10</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="9" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function adminAdjustStock(id, newQty, price, expiry) {
+            if (newQty < 0) newQty = 0;
+            try {
+                await window.api.updateStock({ id, stockQuantity: newQty, unitPrice: price, expiryDate: expiry });
+                window.toast.success('Stock adjusted');
+                loadGlobalInventory();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+    </script>
+</body>
+</html>

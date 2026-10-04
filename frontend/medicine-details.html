@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Details — MediCareX</title>
+    <meta name="description" content="View active ingredients, dosage, precautions, side effects, and nearby pharmacy stock for medications.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .med-hero-flex {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .med-hero-main {
+            display: flex;
+            gap: 1.5rem;
+            flex: 1.5;
+            min-width: 0;
+        }
+        .med-hero-price {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.75rem;
+        }
+        .med-specs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .med-hero-flex {
+                flex-direction: column;
+                gap: 1.25rem;
+            }
+            .med-hero-main {
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            .med-hero-main img {
+                width: 100px !important;
+                height: 100px !important;
+            }
+            .med-hero-price {
+                width: 100%;
+                align-items: flex-start;
+            }
+            .med-hero-price .text-right {
+                text-align: left;
+            }
+            .med-hero-price .flex.gap-2 {
+                width: 100%;
+            }
+            .med-hero-price .btn-primary {
+                flex: 1;
+            }
+            .med-specs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Back Navigation Link -->
+                <div style="margin-bottom: 1.5rem;">
+                    <a href="/search.html" class="flex items-center gap-2" style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                        Back to Medicine Search
+                    </a>
+                </div>
+
+                <!-- Hero Section Card -->
+                <div class="card" id="medicine-hero-card" style="padding: 2rem; margin-bottom: 2rem;">
+                    <div style="text-align: center; color: var(--text-muted);">Loading medicine details...</div>
+                </div>
+
+                <!-- Tabbed Information Details Card -->
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
+                        <div class="tabs-header w-full" style="margin-bottom: 0;">
+                            <button class="tab-btn active" onclick="switchTab('overview')">Overview & Uses</button>
+                            <button class="tab-btn" onclick="switchTab('pharmacies')">Pharmacy Stock & Availability</button>
+                            <button class="tab-btn" onclick="switchTab('important')">Important Safety Information</button>
+                            <button class="tab-btn" onclick="switchTab('side-effects')">Side Effects</button>
+                            <button class="tab-btn" onclick="switchTab('specifications')">Specifications</button>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <!-- Tab 1: Overview -->
+                        <div id="tab-overview" class="tab-content">
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Description</h4>
+                            <p id="med-description" style="line-height: 1.7; margin-bottom: 1.5rem; font-size: 14px;"></p>
+
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Indications & Uses</h4>
+                            <p id="med-uses" style="line-height: 1.7; font-size: 14px;"></p>
+                        </div>
+
+                        <!-- Tab: Pharmacy Stock & Availability -->
+                        <div id="tab-pharmacies" class="tab-content hidden">
+                            <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                                <div>
+                                    <h4 style="color: var(--navy); margin-bottom: 0.25rem;">Live Pharmacy Stock</h4>
+                                    <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Real-time inventory levels and retail prices across registered pharmacies.</p>
+                                </div>
+                                <button class="btn btn-sm btn-outline" onclick="loadPharmacyStock(currentMedicineId)">Refresh Stock</button>
+                            </div>
+                            <div id="pharmacy-stock-list" class="flex flex-col gap-2">
+                                <div style="font-size: 13px; color: var(--text-muted); padding: 1rem 0;">Checking pharmacy stock...</div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Important Safety -->
+                        <div id="tab-important" class="tab-content hidden">
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Dosage Guidance & Warnings</h4>
+                            <p id="med-important" style="line-height: 1.7; margin-bottom: 1.5rem; font-size: 14px;"></p>
+
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Storage & Handling</h4>
+                            <p id="med-storage" style="line-height: 1.7; font-size: 14px;"></p>
+                        </div>
+
+                        <!-- Tab 3: Side Effects -->
+                        <div id="tab-side-effects" class="tab-content hidden">
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Potential Side Effects</h4>
+                            <p id="med-side-effects" style="line-height: 1.7; font-size: 14px;"></p>
+                        </div>
+
+                        <!-- Tab 4: Specifications Table -->
+                        <div id="tab-specifications" class="tab-content hidden">
+                            <table class="data-table">
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 200px; font-weight: 600; color: var(--navy);">Active Salt / Generic</td>
+                                        <td id="spec-generic"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: var(--navy);">Therapeutic Class</td>
+                                        <td id="spec-category"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: var(--navy);">Dosage Form</td>
+                                        <td id="spec-form"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: var(--navy);">Strength</td>
+                                        <td id="spec-dosage"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: var(--navy);">Prescription Requirement</td>
+                                        <td id="spec-prescription"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: var(--navy);">Standard Storage</td>
+                                        <td id="spec-storage"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Medical Disclaimer -->
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; display: flex; align-items: flex-start; gap: 1rem;">
+                    <div style="font-size: 20px;">ℹ️</div>
+                    <div style="font-size: 13px; color: #1e40af; line-height: 1.6;">
+                        <strong>Medical Disclaimer:</strong> The information provided on this page is for general educational and informational purposes only. Always consult your certified physician, pharmacist, or qualified healthcare provider before initiating, changing, or discontinuing any medication regimen.
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentMedicineId = 1;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('search');
+
+            const params = new URLSearchParams(window.location.search);
+            currentMedicineId = parseInt(params.get('id')) || 1;
+            loadMedicineDetails(currentMedicineId);
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+        }
+
+        async function loadMedicineDetails(id) {
+            try {
+                const res = await window.api.getMedicineById(id);
+                const m = res.data;
+                if (!m) return;
+
+                document.title = `${m.name} — MediCareX`;
+
+                const hero = document.getElementById('medicine-hero-card');
+                hero.innerHTML = `
+                    <div class="med-hero-flex">
+                        <div class="med-hero-main">
+                            <img src="${m.imageUrl}" alt="${m.name}" style="width: 130px; height: 130px; border-radius: 12px; object-fit: cover; border: 1px solid var(--border); box-shadow: var(--shadow-sm); flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200'" />
+                            <div class="flex flex-col gap-2" style="flex: 1; min-width: 0;">
+                                <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+                                    <span class="badge ${m.overallStatus === 'In Stock' ? 'badge-success' : 'badge-warning'}">
+                                        <span class="badge-dot"></span>
+                                        ${m.overallStatus} (${m.totalStock} units nearby)
+                                    </span>
+                                    ${m.prescriptionRequired ? '<span class="badge badge-purple">Prescription Required</span>' : '<span class="badge badge-gray">Over The Counter (OTC)</span>'}
+                                </div>
+                                <h1 style="font-size: 1.75rem; color: var(--navy); font-weight: 800; line-height: 1.2; word-break: break-word;">${m.name}</h1>
+                                <div style="font-size: 14px; color: var(--text-secondary); font-weight: 500; word-break: break-word;">Generic: <strong style="color: var(--navy);">${m.genericName}</strong></div>
+                                <div style="font-size: 13px; color: var(--text-muted); word-break: break-word;">Popular Brands: ${m.brand} • Form: ${m.form} (${m.dosage})</div>
+                            </div>
+                        </div>
+
+                        <div class="med-hero-price">
+                            <div class="text-right">
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Average Price</div>
+                                <div style="font-size: 1.85rem; font-weight: 800; color: var(--navy);">₹${m.basePrice.toFixed(2)}</div>
+                                <div style="font-size: 12px; color: var(--success); font-weight: 500;">Available in ${m.pharmacyCount} pharmacies</div>
+                            </div>
+                            <div class="flex gap-2" style="flex-wrap: wrap;">
+                                <button class="btn btn-secondary btn-icon" id="btn-save-med" onclick="toggleSave(${m.id})" title="Save to Favorites">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                                </button>
+                                <button class="btn btn-primary" onclick="window.location.href='/map.html?medicineId=${m.id}'">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    Find on Map
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Fill Tab contents
+                document.getElementById('med-description').innerText = m.description || 'Broad-spectrum pharmaceutical compound.';
+                document.getElementById('med-uses').innerText = m.uses || 'Consult your physician for therapeutic indications.';
+                document.getElementById('med-important').innerText = m.importantInfo || 'Always complete the full prescribed course.';
+                document.getElementById('med-storage').innerText = m.storageInfo || 'Store in a cool, dry place away from direct sunlight.';
+                document.getElementById('med-side-effects').innerText = m.sideEffects || 'Mild gastrointestinal upset may occur in sensitive individuals.';
+
+                // Fill Specs
+                document.getElementById('spec-generic').innerText = m.genericName;
+                document.getElementById('spec-category').innerText = m.category;
+                document.getElementById('spec-form').innerText = m.form;
+                document.getElementById('spec-dosage').innerText = m.dosage;
+                document.getElementById('spec-prescription').innerText = m.prescriptionRequired ? 'Yes (Rx is required)' : 'No (Available over the counter)';
+                document.getElementById('spec-storage').innerText = m.storageInfo;
+
+                // Load pharmacy stock
+                loadPharmacyStock(id);
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadPharmacyStock(medicineId) {
+            const container = document.getElementById('pharmacy-stock-list');
+            if (!container) return;
+            try {
+                const res = await window.api.getPharmaciesByMedicine(medicineId);
+                const list = res.data || [];
+                if (list.length === 0) {
+                    container.innerHTML = `
+                        <div style="background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 1.25rem; font-size: 13px; color: var(--text-muted); text-align: center;">
+                            No registered pharmacies currently have active inventory for this medicine.
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = list.map(p => {
+                    const stock = p.medicineStockQty != null ? p.medicineStockQty : (p.stockQuantity || 0);
+                    const price = p.medicinePrice != null ? p.medicinePrice : (p.unitPrice || 0);
+                    const status = p.medicineStockStatus || (stock > 10 ? 'In Stock' : (stock > 0 ? 'Low Stock' : 'Out of Stock'));
+                    const badgeClass = status === 'In Stock' ? 'badge-success' : (status === 'Low Stock' ? 'badge-warning' : 'badge-danger');
+
+                    return `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; box-shadow: var(--shadow-sm);">
+                            <div>
+                                <div style="font-weight: 700; color: var(--navy); font-size: 14px;">${p.pharmacyName || p.name || 'Pharmacy Store'}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                                    ${p.address || ''}${p.city ? ', ' + p.city : ''} ${p.phone ? '• Tel: ' + p.phone : ''}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 800; color: var(--navy); font-size: 16px;">₹${Number(price).toFixed(2)}</div>
+                                <div class="flex items-center gap-1" style="justify-content: flex-end; margin-top: 3px;">
+                                    <span class="badge ${badgeClass}" style="font-size: 11px;">${stock} units (${status})</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading pharmacy stock:', e);
+                container.innerHTML = `
+                    <div style="font-size: 13px; color: var(--text-muted);">Unable to load live pharmacy inventory.</div>
+                `;
+            }
+        }
+
+        async function toggleSave(medicineId) {
+            try {
+                const res = await window.api.toggleSaveMedicine(medicineId);
+                window.toast.success(res.message || 'Saved state updated');
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+    </script>
+</body>
+</html>

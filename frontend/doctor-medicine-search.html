@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Search & Formulary — MediCareX Doctor</title>
+    <meta name="description" content="Search verified clinical medicine catalog, review therapeutic indications, dosages, side effects, and prescribe medications to patients.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .search-hero-card {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            border-radius: var(--radius-xl);
+            padding: 2.25rem 2rem;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .search-hero-card::after {
+            content: '';
+            position: absolute;
+            right: -20px;
+            bottom: -30px;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .search-input-container {
+            position: relative;
+            margin-top: 1.25rem;
+            max-width: 720px;
+        }
+
+        .search-input-container input {
+            width: 100%;
+            padding: 1rem 1.25rem 1rem 3.25rem;
+            font-size: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: #ffffff;
+            color: var(--navy);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input-container input:focus {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            border-color: #93c5fd;
+        }
+
+        .search-input-container svg {
+            position: absolute;
+            left: 1.15rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .filter-pills-bar {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            scrollbar-width: thin;
+        }
+
+        .filter-pill {
+            padding: 0.45rem 1rem;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: #ffffff;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .filter-pill:hover {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+            background: rgba(37, 99, 235, 0.04);
+        }
+
+        .filter-pill.active {
+            background: var(--primary-blue);
+            color: #ffffff;
+            border-color: var(--primary-blue);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+
+        .medicines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 640px) {
+            .medicines-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .med-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .med-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: #bfdbfe;
+        }
+
+        .med-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .med-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--navy);
+            line-height: 1.3;
+        }
+
+        .med-generic {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .med-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin: 0.85rem 0;
+            font-size: 12px;
+        }
+
+        .med-meta-item span:first-child {
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 1px;
+        }
+
+        .med-meta-item span:last-child {
+            color: var(--navy);
+            font-weight: 600;
+        }
+
+        .med-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .detail-row {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            color: var(--navy);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .search-hero-card {
+                padding: 1.5rem 1.25rem;
+            }
+            .medicines-grid {
+                grid-template-columns: 1fr;
+            }
+            .med-actions {
+                flex-direction: column;
+            }
+            .med-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Doctor Medicine Search Hero Header -->
+                <div class="search-hero-card">
+                    <div style="max-width: 600px;">
+                        <span class="badge" style="background: rgba(255,255,255,0.2); color: #ffffff; margin-bottom: 0.5rem; font-weight: 600;">Clinical Formulary</span>
+                        <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.4rem; color: #ffffff;">Medicine Search</h1>
+                        <p style="font-size: 14px; color: #e0e7ff; margin: 0;">Search verified pharmaceutical catalog, dosages, indications, side effects, and prescribe medications directly.</p>
+                    </div>
+
+                    <div class="search-input-container">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="doc-med-search" placeholder="Search medicines by name, generic formula, brand, or category..." autofocus />
+                    </div>
+                </div>
+
+                <!-- Therapeutic Category Filter Bar -->
+                <div class="filter-pills-bar" id="category-pills">
+                    <button class="filter-pill active" data-cat="All">All Categories</button>
+                    <button class="filter-pill" data-cat="Pain Relief">Pain Relief</button>
+                    <button class="filter-pill" data-cat="Antibiotics">Antibiotics</button>
+                    <button class="filter-pill" data-cat="Cardiology">Cardiology</button>
+                    <button class="filter-pill" data-cat="Diabetes">Diabetes</button>
+                    <button class="filter-pill" data-cat="Respiratory">Respiratory</button>
+                    <button class="filter-pill" data-cat="Gastroenterology">Gastroenterology</button>
+                    <button class="filter-pill" data-cat="Allergy">Allergy</button>
+                    <button class="filter-pill" data-cat="Vitamins">Vitamins</button>
+                    <button class="filter-pill" data-cat="General">General</button>
+                </div>
+
+                <!-- Results Counter & Status Filter -->
+                <div class="flex justify-between items-center" style="margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="font-size: 14px; font-weight: 600; color: var(--navy);" id="results-count-text">
+                        Searching medical database...
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label for="rx-filter-select" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Formulary Filter:</label>
+                        <select id="rx-filter-select" class="form-select" style="padding: 0.35rem 0.75rem; font-size: 13px; width: auto;" onchange="applyFilters()">
+                            <option value="All">All Formularies</option>
+                            <option value="Rx">Prescription Required (Rx)</option>
+                            <option value="OTC">Over The Counter (OTC)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Medicines Results Grid -->
+                <div class="medicines-grid" id="medicines-grid">
+                    <div class="card" style="grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--text-muted);">
+                        Loading medicines catalog...
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Clinical Details Modal -->
+    <div class="modal-overlay" id="med-details-modal">
+        <div class="modal-container" style="max-width: 680px;">
+            <div class="modal-header">
+                <div>
+                    <h3 style="color: var(--navy); margin-bottom: 2px;" id="modal-med-name">Medicine Details</h3>
+                    <span style="font-size: 13px; color: var(--text-muted);" id="modal-med-generic">Generic Formula</span>
+                </div>
+                <button class="btn-icon" onclick="closeDetailsModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modal-details-body" style="max-height: 65vh; overflow-y: auto;">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDetailsModal()">Close</button>
+                <button type="button" id="btn-modal-prescribe" class="btn btn-primary" onclick="prescribeFromModal()">
+                    ℞ Prescribe to Patient
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issue Digital Prescription Modal -->
+    <div class="modal-overlay" id="create-rx-modal">
+        <div class="modal-container" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Issue Digital Prescription</h3>
+                <button class="btn-icon" onclick="closeCreateRxModal()">✕</button>
+            </div>
+            <form id="create-rx-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="rx-patient-select">Select Patient</label>
+                        <select id="rx-patient-select" class="form-select" required>
+                            <option value="" disabled selected>Loading registered patients...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rx-diag-input">Clinical Diagnosis</label>
+                        <input type="text" id="rx-diag-input" class="form-input" placeholder="e.g. Acute Bronchitis, Hypertension, Type 2 Diabetes" required />
+                    </div>
+
+                    <div class="form-group">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.5rem;">
+                            <label class="form-label" style="margin-bottom: 0;">Prescribed Medications</label>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="addMedicationRow()" style="font-size: 11px; padding: 0.2rem 0.5rem;">+ Add Another Medicine</button>
+                        </div>
+                        <div id="rx-meds-builder" class="flex flex-col gap-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rx-notes-input">Physician Advisory & Instructions</label>
+                        <textarea id="rx-notes-input" class="form-textarea" rows="2" placeholder="e.g. Take after meals, maintain proper hydration, follow up in 5 days."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateRxModal()">Cancel</button>
+                    <button type="submit" id="btn-issue-rx" class="btn btn-primary">Sign & Issue Prescription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let allMedicines = [];
+        let activeCategory = 'All';
+        let currentDetailMed = null;
+        let cachedPatientsList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Strict Doctor Role Verification
+            const user = window.api.getUser();
+            if (user && user.role === 'PATIENT') {
+                window.location.href = '/search.html';
+                return;
+            }
+
+            window.Shell.init('doctor-medicine-search');
+
+            // Category Filter Click Handlers
+            document.querySelectorAll('#category-pills .filter-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('#category-pills .filter-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    activeCategory = pill.getAttribute('data-cat') || 'All';
+                    applyFilters();
+                });
+            });
+
+            // Debounced Search Input Handler
+            let debounceTimer;
+            document.getElementById('doc-med-search').addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(loadMedicines, 250);
+            });
+
+            // Initial Data Load
+            loadMedicines();
+
+            // Set up Prescription Form Submission
+            document.getElementById('create-rx-form').addEventListener('submit', handlePrescriptionSubmit);
+        });
+
+        async function loadMedicines() {
+            const query = document.getElementById('doc-med-search').value.trim();
+            const grid = document.getElementById('medicines-grid');
+            const countText = document.getElementById('results-count-text');
+
+            countText.innerText = 'Searching catalog...';
+
+            try {
+                const params = { limit: 100 };
+                if (query) params.q = query;
+                if (activeCategory && activeCategory !== 'All') params.category = activeCategory;
+
+                const res = await window.api.getMedicines(params);
+                allMedicines = res.data || [];
+                applyFilters();
+            } catch (err) {
+                console.error('Error fetching medicines:', err);
+                grid.innerHTML = `
+                    <div class="card" style="grid-column: 1 / -1; padding: 2.5rem; text-align: center; color: var(--danger);">
+                        <p style="font-weight: 600;">Failed to load medicines from database.</p>
+                        <p style="font-size: 13px; color: var(--text-muted);">${escapeHtml(err.message || 'Please check server connection.')}</p>
+                    </div>
+                `;
+                countText.innerText = 'Error loading results';
+            }
+        }
+
+        function applyFilters() {
+            const grid = document.getElementById('medicines-grid');
+            const countText = document.getElementById('results-count-text');
+            const rxFilter = document.getElementById('rx-filter-select').value;
+
+            let filtered = allMedicines;
+
+            if (rxFilter === 'Rx') {
+                filtered = filtered.filter(m => m.prescriptionRequired === true || m.prescription_required === true);
+            } else if (rxFilter === 'OTC') {
+                filtered = filtered.filter(m => !m.prescriptionRequired && !m.prescription_required);
+            }
+
+            countText.innerText = `Showing ${filtered.length} medicine${filtered.length === 1 ? '' : 's'}`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="card" style="grid-column: 1 / -1; padding: 3rem; text-align: center;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted); margin: 0 auto 1rem;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <h4 style="color: var(--navy); margin-bottom: 0.5rem;">No medicines found</h4>
+                        <p style="font-size: 13px; color: var(--text-muted); max-width: 400px; margin: 0 auto;">No clinical medicines matched your search and filter criteria. Try adjusting keywords or category filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(m => {
+                const isRx = m.prescriptionRequired === true || m.prescription_required === true;
+                const totalStock = m.totalStock != null ? m.totalStock : (m.total_stock || 0);
+                const pharmCount = m.pharmacyCount != null ? m.pharmacyCount : (m.pharmacy_count || 0);
+
+                return `
+                    <div class="med-card">
+                        <div>
+                            <div class="med-header">
+                                <div>
+                                    <div class="med-name">${escapeHtml(m.name || 'Unnamed Medicine')}</div>
+                                    <div class="med-generic">${escapeHtml(m.genericName || m.generic_name || 'Generic')}</div>
+                                </div>
+                                <span class="badge ${isRx ? 'badge-warning' : 'badge-success'}" style="font-size: 11px;">
+                                    ${isRx ? 'Rx' : 'OTC'}
+                                </span>
+                            </div>
+
+                            <div class="med-meta-grid">
+                                <div class="med-meta-item">
+                                    <span>Category</span>
+                                    <span>${escapeHtml(m.category || 'General')}</span>
+                                </div>
+                                <div class="med-meta-item">
+                                    <span>Dosage & Form</span>
+                                    <span>${escapeHtml(m.dosage || 'Standard')} • ${escapeHtml(m.form || 'Tablet')}</span>
+                                </div>
+                                <div class="med-meta-item">
+                                    <span>Brand</span>
+                                    <span>${escapeHtml(m.brand || 'Generic')}</span>
+                                </div>
+                                <div class="med-meta-item">
+                                    <span>Reference Price</span>
+                                    <span>₹${(m.basePrice || m.base_price || 0).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <div style="font-size: 12px; color: ${totalStock > 0 ? 'var(--success)' : 'var(--text-muted)'}; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 4px;">
+                                <span style="display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${totalStock > 0 ? '#10b981' : '#94a3b8'};"></span>
+                                ${totalStock > 0 ? `${totalStock} in stock across ${pharmCount} pharmacies` : 'Available to prescribe'}
+                            </div>
+                        </div>
+
+                        <div class="med-actions">
+                            <button class="btn btn-sm btn-secondary w-full" onclick="openMedicineDetailsModal(${m.id})">
+                                View Details
+                            </button>
+                            <button class="btn btn-sm btn-primary w-full" onclick="openPrescribeModalForMed(${m.id})">
+                                ℞ Prescribe
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function openMedicineDetailsModal(medicineId) {
+            const med = allMedicines.find(m => m.id === medicineId);
+            if (!med) return;
+
+            currentDetailMed = med;
+            document.getElementById('modal-med-name').innerText = med.name || 'Medicine Details';
+            document.getElementById('modal-med-generic').innerText = `Generic: ${med.genericName || med.generic_name || 'Generic'} | Brand: ${med.brand || 'Generic'}`;
+
+            const isRx = med.prescriptionRequired === true || med.prescription_required === true;
+            const body = document.getElementById('modal-details-body');
+
+            let detailsHtml = `
+                <div class="flex gap-2" style="margin-bottom: 1rem;">
+                    <span class="badge badge-primary">${escapeHtml(med.category || 'General')}</span>
+                    <span class="badge ${isRx ? 'badge-warning' : 'badge-success'}">${isRx ? 'Prescription Required (Rx)' : 'Over the Counter (OTC)'}</span>
+                    <span class="badge badge-info">${escapeHtml(med.dosage || 'Standard')} • ${escapeHtml(med.form || 'Tablet')}</span>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-label">Description & Overview</div>
+                    <div class="detail-value">${escapeHtml(med.description || 'Verified pharmaceutical preparation registered in MediCareX formulary.')}</div>
+                </div>
+            `;
+
+            if (med.uses && med.uses.trim()) {
+                detailsHtml += `
+                    <div class="detail-row">
+                        <div class="detail-label">Therapeutic Indications & Clinical Uses</div>
+                        <div class="detail-value">${escapeHtml(med.uses)}</div>
+                    </div>
+                `;
+            }
+
+            if (med.sideEffects && med.sideEffects.trim()) {
+                detailsHtml += `
+                    <div class="detail-row">
+                        <div class="detail-label">Potential Side Effects & Adverse Reactions</div>
+                        <div class="detail-value">${escapeHtml(med.sideEffects)}</div>
+                    </div>
+                `;
+            }
+
+            if (med.importantInfo && med.importantInfo.trim()) {
+                detailsHtml += `
+                    <div class="detail-row">
+                        <div class="detail-label">Important Physician Warnings & Precautions</div>
+                        <div class="detail-value">${escapeHtml(med.importantInfo)}</div>
+                    </div>
+                `;
+            }
+
+            if (med.storageInfo && med.storageInfo.trim()) {
+                detailsHtml += `
+                    <div class="detail-row">
+                        <div class="detail-label">Storage & Handling</div>
+                        <div class="detail-value">${escapeHtml(med.storageInfo)}</div>
+                    </div>
+                `;
+            }
+
+            detailsHtml += `
+                <div class="detail-row">
+                    <div class="detail-label">Formulary Pricing & Network Availability</div>
+                    <div class="detail-value">Base MRP: <strong>₹${(med.basePrice || med.base_price || 0).toFixed(2)}</strong> | Total Units: <strong>${med.totalStock || med.total_stock || 0}</strong></div>
+                </div>
+
+                <div class="detail-row" style="border-bottom: none; padding-top: 1rem;">
+                    <div class="detail-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span>Live Pharmacy Stock & Availability</span>
+                        <span id="modal-pharm-loading" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">Fetching live stock...</span>
+                    </div>
+                    <div id="modal-pharm-list" class="flex flex-col gap-2" style="margin-top: 0.5rem;">
+                        <div style="font-size: 13px; color: var(--text-muted); font-style: italic;">Loading pharmacy network inventory...</div>
+                    </div>
+                </div>
+            `;
+
+            body.innerHTML = detailsHtml;
+            document.getElementById('med-details-modal').classList.add('active');
+
+            // Asynchronously fetch live pharmacy availability
+            try {
+                const pharmRes = await window.api.getPharmaciesByMedicine(medicineId);
+                const pharmList = pharmRes.data || [];
+                const pharmContainer = document.getElementById('modal-pharm-list');
+                const loadingSpan = document.getElementById('modal-pharm-loading');
+
+                if (loadingSpan) {
+                    loadingSpan.innerText = `${pharmList.length} pharmac${pharmList.length === 1 ? 'y' : 'ies'} with inventory`;
+                }
+
+                if (pharmList.length === 0) {
+                    if (pharmContainer) {
+                        pharmContainer.innerHTML = `
+                            <div style="background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 0.85rem; font-size: 13px; color: var(--text-muted); text-align: center;">
+                                No affiliated pharmacies currently have recorded stock for this item.
+                            </div>
+                        `;
+                    }
+                } else if (pharmContainer) {
+                    pharmContainer.innerHTML = pharmList.map(p => {
+                        const stock = p.medicineStockQty != null ? p.medicineStockQty : (p.stockQuantity || 0);
+                        const price = p.medicinePrice != null ? p.medicinePrice : (p.unitPrice || med.basePrice || 0);
+                        const status = p.medicineStockStatus || (stock > 10 ? 'In Stock' : (stock > 0 ? 'Low Stock' : 'Out of Stock'));
+                        const badgeClass = status === 'In Stock' ? 'badge-success' : (status === 'Low Stock' ? 'badge-warning' : 'badge-danger');
+
+                        return `
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;">
+                                <div>
+                                    <div style="font-weight: 700; color: var(--navy); font-size: 13px;">${escapeHtml(p.pharmacyName || p.name || 'Affiliated Pharmacy')}</div>
+                                    <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(p.address || '')}${p.city ? ', ' + escapeHtml(p.city) : ''}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: 800; color: var(--navy); font-size: 14px;">₹${Number(price).toFixed(2)}</div>
+                                    <div class="flex items-center gap-1" style="justify-content: flex-end; margin-top: 2px;">
+                                        <span class="badge ${badgeClass}" style="font-size: 11px; padding: 2px 6px;">${stock} units (${status})</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load pharmacy stock details:', err);
+                const pharmContainer = document.getElementById('modal-pharm-list');
+                if (pharmContainer) {
+                    pharmContainer.innerHTML = `
+                        <div style="font-size: 12px; color: var(--text-muted);">Could not retrieve pharmacy stock details at this moment.</div>
+                    `;
+                }
+            }
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('med-details-modal').classList.remove('active');
+        }
+
+        function prescribeFromModal() {
+            if (!currentDetailMed) return;
+            closeDetailsModal();
+            openPrescribeModalForMed(currentDetailMed.id);
+        }
+
+        async function openPrescribeModalForMed(medicineId) {
+            const med = allMedicines.find(m => m.id === medicineId);
+            if (!med) return;
+
+            // 1. Populate patient dropdown
+            await populatePatientDropdown();
+
+            // 2. Pre-fill medication row with this selected medicine
+            const builder = document.getElementById('rx-meds-builder');
+            builder.innerHTML = `
+                <div class="flex gap-2 items-center rx-med-row">
+                    <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" value="${escapeHtml(med.name || '')}" required />
+                    <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" value="${escapeHtml(med.dosage || 'Standard')}" style="max-width: 90px;" required />
+                    <input type="text" class="form-input rx-med-freq" placeholder="Frequency (e.g. 1-0-1)" value="1-0-1" required />
+                    <input type="text" class="form-input rx-med-dur" placeholder="Duration" value="5 Days" style="max-width: 90px;" required />
+                    <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove" style="color: var(--text-muted); padding: 4px;">✕</button>
+                </div>
+            `;
+
+            document.getElementById('rx-diag-input').value = '';
+            document.getElementById('rx-notes-input').value = 'Take after meals with water as directed.';
+            document.getElementById('create-rx-modal').classList.add('active');
+        }
+
+        async function populatePatientDropdown() {
+            const select = document.getElementById('rx-patient-select');
+            if (!select) return;
+
+            if (!cachedPatientsList || cachedPatientsList.length === 0) {
+                try {
+                    const res = await window.api.getDoctorPatients();
+                    cachedPatientsList = res.data || [];
+                } catch (e) {
+                    console.error('Error fetching doctor patients:', e);
+                }
+            }
+
+            select.innerHTML = '';
+            const uniquePatientsMap = new Map();
+            (cachedPatientsList || []).forEach(p => {
+                const pId = p.id != null ? p.id : p.patientId;
+                if (pId != null && !uniquePatientsMap.has(pId)) {
+                    uniquePatientsMap.set(pId, p);
+                }
+            });
+
+            const uniqueList = Array.from(uniquePatientsMap.values());
+            if (uniqueList.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "No registered patients found";
+                select.appendChild(opt);
+                return;
+            }
+
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = "";
+            defaultOpt.disabled = true;
+            defaultOpt.selected = true;
+            defaultOpt.textContent = "Select Patient...";
+            select.appendChild(defaultOpt);
+
+            uniqueList.forEach(p => {
+                const opt = document.createElement('option');
+                const pId = p.id != null ? p.id : p.patientId;
+                opt.value = pId;
+                const name = p.fullName || p.name || 'Patient';
+                const details = [];
+                if (p.gender) details.push(p.gender);
+                if (p.bloodGroup) details.push(p.bloodGroup);
+                opt.textContent = details.length > 0 ? `${name} (${details.join(', ')})` : name;
+                select.appendChild(opt);
+            });
+        }
+
+        function addMedicationRow() {
+            const builder = document.getElementById('rx-meds-builder');
+            if (!builder) return;
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 items-center rx-med-row';
+            row.innerHTML = `
+                <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" required />
+                <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" style="max-width: 90px;" required />
+                <input type="text" class="form-input rx-med-freq" placeholder="Frequency" value="1-0-1" required />
+                <input type="text" class="form-input rx-med-dur" placeholder="Duration" value="5 Days" style="max-width: 90px;" required />
+                <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove" style="color: var(--text-muted); padding: 4px;">✕</button>
+            `;
+            builder.appendChild(row);
+        }
+
+        function removeMedicationRow(btn) {
+            const rows = document.querySelectorAll('.rx-med-row');
+            if (rows.length > 1) {
+                btn.closest('.rx-med-row').remove();
+            } else {
+                window.toast.warning('Prescription must contain at least one medication.');
+            }
+        }
+
+        function closeCreateRxModal() {
+            document.getElementById('create-rx-modal').classList.remove('active');
+        }
+
+        async function handlePrescriptionSubmit(e) {
+            e.preventDefault();
+            const patientSelect = document.getElementById('rx-patient-select');
+            const patientId = patientSelect.value;
+            if (!patientId) {
+                window.toast.error('Please select a patient.');
+                return;
+            }
+
+            const diagnosis = document.getElementById('rx-diag-input').value.trim();
+            const notes = document.getElementById('rx-notes-input').value.trim();
+
+            const rows = document.querySelectorAll('.rx-med-row');
+            const medicines = [];
+            for (const r of rows) {
+                const name = r.querySelector('.rx-med-name').value.trim();
+                const dosage = r.querySelector('.rx-med-dosage').value.trim();
+                const frequency = r.querySelector('.rx-med-freq').value.trim();
+                const duration = r.querySelector('.rx-med-dur').value.trim();
+                if (name) {
+                    medicines.push({ name, dosage, frequency, duration });
+                }
+            }
+
+            if (medicines.length === 0) {
+                window.toast.error('Please add at least one medication.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-issue-rx');
+            btn.disabled = true;
+            btn.innerText = 'Signing & Issuing...';
+
+            try {
+                const payload = {
+                    patientId: parseInt(patientId),
+                    diagnosis,
+                    medicines,
+                    instructions: notes
+                };
+
+                const res = await window.api.createPrescription(payload);
+                closeCreateRxModal();
+                window.toast.success(`Prescription #${res.data?.prescriptionNumber || ''} issued successfully!`);
+                
+                // Redirect to view prescription after short delay
+                setTimeout(() => {
+                    if (res.data?.id) {
+                        window.location.href = `/prescription.html?id=${res.data.id}`;
+                    } else {
+                        window.location.href = '/prescription.html';
+                    }
+                }, 1200);
+            } catch (err) {
+                console.error('Error issuing prescription:', err);
+                window.toast.error(err.message || 'Failed to issue prescription.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Sign & Issue Prescription';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

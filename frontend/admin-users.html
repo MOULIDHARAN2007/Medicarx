@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users Management — MediCareX Admin</title>
+    <meta name="description" content="Manage user accounts, roles, access permissions, and account status across MediCareX.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-card {
+            background: #ffffff;
+            border-radius: var(--radius-lg, 12px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 520px;
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        }
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            line-height: 1;
+            padding: 0.25rem;
+        }
+        .modal-close:hover {
+            color: var(--navy);
+        }
+        .modal-body {
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: var(--bg-surface, #f8fafc);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .inline-alert {
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md, 8px);
+            font-size: 13px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .inline-alert.danger {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center" style="margin-bottom: 1.5rem;">
+                    <div>
+                        <h1 class="page-title">User Accounts Management</h1>
+                        <p class="page-subtitle">Directory of patient, doctor, pharmacy, and administrator accounts</p>
+                    </div>
+                    <button class="btn btn-primary flex items-center gap-2" id="btn-open-create-account" onclick="openCreateAccountModal()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        + Create New Account
+                    </button>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="user-search-in" placeholder="Search by name, email, or phone..." oninput="filterUsers()" />
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <select id="user-role-filter" class="form-select" style="width: auto;" onchange="filterUsers()">
+                                <option value="All">All Roles</option>
+                                <option value="ADMIN">Administrators</option>
+                                <option value="PATIENT">Patients</option>
+                                <option value="DOCTOR">Doctors</option>
+                                <option value="PHARMACY">Pharmacies</option>
+                            </select>
+
+                            <select id="user-status-filter" class="form-select" style="width: auto;" onchange="filterUsers()">
+                                <option value="All">All Statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User Account</th>
+                                    <th>Email Address</th>
+                                    <th>Phone</th>
+                                    <th>Assigned Role</th>
+                                    <th>Account Status</th>
+                                    <th>Created By</th>
+                                    <th>Created Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <tr>
+                                    <td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading user registry...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Account Modal (Patient & Administrator Only) -->
+    <div class="modal-overlay" id="create-account-modal" onclick="if(event.target === this) closeCreateAccountModal()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    Create New Account
+                </h3>
+                <button type="button" class="modal-close" onclick="closeCreateAccountModal()" title="Close">&times;</button>
+            </div>
+            <form id="create-account-form" onsubmit="handleCreateAccountSubmit(event)">
+                <div class="modal-body">
+                    <div id="modal-error-box" class="inline-alert"></div>
+
+                    <!-- Role Selector: Strictly Patient and Administrator only -->
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label" for="account-role">Account Type / Role <span style="color: var(--danger);">*</span></label>
+                        <select id="account-role" class="form-select" required>
+                            <option value="PATIENT">Patient</option>
+                            <option value="ADMIN">Administrator</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px; display: block;">
+                            ℹ️ Note: Doctor and Pharmacy accounts register via public enrollment and are activated through the Admin Approval workflow.
+                        </small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label" for="account-fullname">Full Name <span style="color: var(--danger);">*</span></label>
+                        <input type="text" id="account-fullname" class="form-input" placeholder="e.g. Ananya Sharma" required />
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label" for="account-email">Email Address <span style="color: var(--danger);">*</span></label>
+                        <input type="email" id="account-email" class="form-input" placeholder="name@example.com" autocomplete="off" required />
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label" for="account-phone">Phone Number</label>
+                        <input type="tel" id="account-phone" class="form-input" placeholder="+91 98765 43210" />
+                    </div>
+
+                    <div class="flex gap-4" style="margin-bottom: 0.5rem;">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="account-password">Password <span style="color: var(--danger);">*</span></label>
+                            <input type="password" id="account-password" class="form-input" placeholder="••••••••" autocomplete="new-password" required minlength="6" />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="account-confirm-password">Confirm Password <span style="color: var(--danger);">*</span></label>
+                            <input type="password" id="account-confirm-password" class="form-input" placeholder="••••••••" autocomplete="new-password" required minlength="6" />
+                        </div>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-muted);">Minimum 6 characters. The user will be created as active and can log in immediately.</span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateAccountModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-account">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let allUsers = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-users');
+            loadUsers();
+        });
+
+        async function loadUsers() {
+            try {
+                const res = await window.api.getAdminUsers();
+                allUsers = res.data || [];
+                filterUsers();
+            } catch (err) {
+                document.getElementById('users-tbody').innerHTML = `<tr><td colspan="8" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        function filterUsers() {
+            const tbody = document.getElementById('users-tbody');
+            const search = document.getElementById('user-search-in').value.toLowerCase().trim();
+            const role = document.getElementById('user-role-filter').value;
+            const status = document.getElementById('user-status-filter').value;
+
+            let list = allUsers;
+
+            if (role !== 'All') {
+                list = list.filter(u => u.role === role);
+            }
+
+            if (status !== 'All') {
+                const wantActive = status === 'Active';
+                list = list.filter(u => u.isActive === wantActive);
+            }
+
+            if (search) {
+                list = list.filter(u => (u.fullName && u.fullName.toLowerCase().includes(search)) ||
+                                        (u.email && u.email.toLowerCase().includes(search)) ||
+                                        (u.phone && u.phone.includes(search)));
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="padding: 3rem; text-align: center; color: var(--text-muted);">No users found matching filters.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(u => {
+                const roleBadge = u.role === 'ADMIN' ? 'badge-purple'
+                                : (u.role === 'DOCTOR' ? 'badge-blue'
+                                : (u.role === 'PHARMACY' ? 'badge-warning' : 'badge-gray'));
+
+                let creatorLabel = '-';
+                if (u.createdBy) {
+                    const creator = allUsers.find(cu => cu.id === u.createdBy);
+                    creatorLabel = creator ? `${creator.fullName} (#${u.createdBy})` : `Admin #${u.createdBy}`;
+                } else if (u.role === 'ADMIN') {
+                    creatorLabel = 'System Root';
+                }
+
+                const currentUser = window.api.getCurrentUser() || {};
+                const isSelf = currentUser.id === u.id;
+
+                return `
+                    <tr>
+                        <td>
+                            <div class="flex items-center gap-3">
+                                <img src="${u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" alt="Avatar" class="user-avatar-sm" style="width: 36px; height: 36px;" />
+                                <div>
+                                    <strong style="color: var(--navy); font-size: 14px;">${escapeHtml(u.fullName)}</strong>
+                                    <div style="font-size: 11px; color: var(--text-muted);">ID: #${u.id}${isSelf ? ' (You)' : ''}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="font-size: 13px; color: var(--navy); font-weight: 500;">${escapeHtml(u.email)}</td>
+                        <td style="font-size: 13px; color: var(--text-secondary);">${escapeHtml(u.phone || '-')}</td>
+                        <td><span class="badge ${roleBadge}">${escapeHtml(u.role)}</span></td>
+                        <td>
+                            <span class="badge ${u.isActive ? 'badge-success' : 'badge-danger'}">
+                                <span class="badge-dot"></span>
+                                ${u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(creatorLabel)}</td>
+                        <td style="font-size: 12px; color: var(--text-muted);">${u.createdAt ? u.createdAt.substring(0, 10) : '2026-09-01'}</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm ${u.isActive ? 'btn-secondary' : 'btn-primary'}" 
+                                    ${isSelf && u.isActive ? 'disabled title="Cannot deactivate your own account"' : ''}
+                                    onclick="toggleStatus(${u.id}, ${!u.isActive})">
+                                    ${u.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openCreateAccountModal() {
+            document.getElementById('create-account-form').reset();
+            const errBox = document.getElementById('modal-error-box');
+            errBox.className = 'inline-alert';
+            errBox.innerText = '';
+            document.getElementById('btn-submit-account').disabled = false;
+            document.getElementById('btn-submit-account').innerText = 'Create Account';
+            document.getElementById('create-account-modal').classList.add('active');
+            setTimeout(() => document.getElementById('account-fullname').focus(), 50);
+        }
+
+        function closeCreateAccountModal() {
+            document.getElementById('create-account-modal').classList.remove('active');
+        }
+
+        async function handleCreateAccountSubmit(e) {
+            e.preventDefault();
+            const errBox = document.getElementById('modal-error-box');
+            const btn = document.getElementById('btn-submit-account');
+
+            const role = document.getElementById('account-role').value;
+            const fullName = document.getElementById('account-fullname').value.trim();
+            const email = document.getElementById('account-email').value.trim();
+            const phone = document.getElementById('account-phone').value.trim();
+            const password = document.getElementById('account-password').value;
+            const confirmPassword = document.getElementById('account-confirm-password').value;
+
+            if (role !== 'PATIENT' && role !== 'ADMIN') {
+                showModalError('Admin can only create Patient or Administrator accounts.');
+                return;
+            }
+
+            if (!fullName || !email || !password) {
+                showModalError('Please fill in all required fields.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showModalError('Passwords do not match.');
+                return;
+            }
+
+            if (password.length < 6) {
+                showModalError('Password must be at least 6 characters.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Creating Account...';
+            errBox.className = 'inline-alert';
+            errBox.innerText = '';
+
+            try {
+                const res = await window.api.createAdminAccount({ role, fullName, email, phone, password, confirmPassword });
+                window.toast.success((role === 'ADMIN' ? 'Administrator' : 'Patient') + ' account created successfully.');
+                closeCreateAccountModal();
+                await loadUsers();
+            } catch (err) {
+                showModalError(err.message || 'Failed to create account.');
+                btn.disabled = false;
+                btn.innerText = 'Create Account';
+            }
+        }
+
+        function showModalError(msg) {
+            const errBox = document.getElementById('modal-error-box');
+            errBox.className = 'inline-alert danger';
+            errBox.innerText = msg;
+        }
+
+        async function toggleStatus(userId, newActive) {
+            try {
+                await window.api.toggleAdminUserStatus(userId, newActive);
+                window.toast.success(`User status changed to ${newActive ? 'Active' : 'Inactive'}`);
+                loadUsers();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

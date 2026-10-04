@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management — MediCareX Admin</title>
+    <meta name="description" content="Centralized healthcare facility registry, emergency capacity, ICU and bed readiness, and ambulance receiving controls.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    
+    <!-- Leaflet CSS & JS for OpenStreetMap Hospital Facility Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        .map-section-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        #admin-hospitals-map {
+            width: 100%;
+            height: 380px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+        .hosp-pin-wrapper {
+            background: transparent;
+            border: none;
+        }
+        .hosp-pin {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+            border: 2px solid white;
+            transition: transform 0.2s;
+        }
+        .hosp-pin:hover {
+            transform: scale(1.15);
+        }
+        .hosp-pin.active-er { background: #10B981; color: white; }
+        .hosp-pin.active-std { background: #2563EB; color: white; }
+        .hosp-pin.inactive { background: #94A3B8; color: white; }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+        .leaflet-popup-content {
+            margin: 12px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Page Header -->
+                <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                        <h1 class="page-title">Hospital & Facility Management</h1>
+                        <p class="text-muted">Register accredited medical centers, manage ER/ICU capabilities, and configure ambulance receiving destinations.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="btn btn-primary" onclick="openAddHospitalModal()">
+                            <span>✚ Add Hospital</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hospital Metrics Summary Cards -->
+                <div class="grid grid-cols-5 gap-4 mt-6">
+                    <div class="card p-4">
+                        <div class="text-xs text-muted uppercase font-bold tracking-wider">Total Hospitals</div>
+                        <div class="text-2xl font-bold mt-1" id="stat-total-hospitals">0</div>
+                        <div class="text-xs text-muted mt-1">Accredited centers</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-xs text-muted uppercase font-bold tracking-wider">Active Hospitals</div>
+                        <div class="text-2xl font-bold text-emerald-600 mt-1" id="stat-active-hospitals">0</div>
+                        <div class="text-xs text-muted mt-1">Operational in dispatch</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-xs text-muted uppercase font-bold tracking-wider">Pending Review</div>
+                        <div class="text-2xl font-bold text-amber-600 mt-1" id="stat-pending-hospitals">0</div>
+                        <div class="text-xs text-muted mt-1">Ambulance submissions</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-xs text-muted uppercase font-bold tracking-wider">Rejected</div>
+                        <div class="text-2xl font-bold text-rose-500 mt-1" id="stat-rejected-hospitals">0</div>
+                        <div class="text-xs text-muted mt-1">Declined suggestions</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-xs text-muted uppercase font-bold tracking-wider">Emergency-Ready</div>
+                        <div class="text-2xl font-bold text-blue-600 mt-1" id="stat-emergency-hospitals">0</div>
+                        <div class="text-xs text-muted mt-1">24/7 ER & Ambulance</div>
+                    </div>
+                </div>
+
+                <!-- Hospital Interactive Facilities Map -->
+                <div class="map-section-card mt-6">
+                    <div class="p-4 flex justify-between items-center border-b flex-wrap gap-2" style="border-color: var(--border);">
+                        <div>
+                            <h3 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin: 0;">🏥 Hospital Geographical Network & Emergency Status</h3>
+                            <p class="text-xs text-muted" style="margin: 0.15rem 0 0 0;">Visualizing hospital coordinates, emergency readiness, ICU capacity, and ambulance acceptance.</p>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs">
+                            <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10B981;"></span> Emergency Ready</span>
+                            <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2563EB;"></span> Active Standard</span>
+                            <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F59E0B;"></span> Pending Review</span>
+                            <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94A3B8;"></span> Inactive / Rejected</span>
+                        </div>
+                    </div>
+                    <div id="admin-hospitals-map"></div>
+                </div>
+
+                <!-- Hospital Filters & Search Bar -->
+                <div class="card p-4 mt-6">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div class="flex-1 min-w-[240px] flex items-center gap-3 flex-wrap">
+                            <div style="position: relative; flex: 1; min-width: 200px;">
+                                <input type="text" id="hospital-search-input" class="form-control" placeholder="Search by hospital name, city, state, or pincode..." oninput="handleSearchDebounced()">
+                            </div>
+                            <select id="filter-status" class="form-control" style="width: 170px;" onchange="loadHospitals()">
+                                <option value="ALL">All Statuses</option>
+                                <option value="ACTIVE">Active Only</option>
+                                <option value="PENDING_REVIEW">Pending Review</option>
+                                <option value="INACTIVE">Inactive Only</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-slate-700">
+                                <input type="checkbox" id="filter-emergency" onchange="loadHospitals()"> Emergency Capable
+                            </label>
+                            <label class="flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-slate-700">
+                                <input type="checkbox" id="filter-accepting" onchange="loadHospitals()"> Accepting Ambulances
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-secondary btn-sm" onclick="loadHospitals()">
+                                <span>↻ Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hospital Records Table -->
+                <div class="card mt-6">
+                    <div class="card-header flex justify-between items-center">
+                        <div>
+                            <h3 class="card-title">Hospital Registry</h3>
+                            <p class="text-xs text-muted" id="table-count-label">Showing registered hospital facilities</p>
+                        </div>
+                    </div>
+
+                    <div id="hospitals-table-container" class="table-responsive">
+                        <div class="text-center py-8 text-muted">
+                            <div class="spinner mb-2"></div>
+                            <p>Loading hospital directory...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add / Edit Hospital Modal -->
+    <div id="hospital-modal" class="modal-overlay hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="modal-content" style="background:white;border-radius:12px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);">
+            <div class="p-6 border-b flex justify-between items-center" style="border-color:var(--border);">
+                <div>
+                    <h3 id="modal-title" style="font-size:1.25rem;font-weight:700;color:var(--navy);margin:0;">Add Hospital</h3>
+                    <p class="text-xs text-muted mt-1">Configure hospital facility credentials, emergency services, and bed inventory.</p>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="closeHospitalModal()" style="font-size:1.25rem;line-height:1;">✕</button>
+            </div>
+
+            <form id="hospital-form" onsubmit="handleHospitalSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="hospital-id" value="">
+
+                <!-- Row 1: Name & Reg ID -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Hospital Name *</label>
+                        <input type="text" id="hosp-name" class="form-control" placeholder="e.g., Central Emergency Trauma Hospital" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Registration / Ref ID</label>
+                        <input type="text" id="hosp-reg" class="form-control" placeholder="e.g., HOSP-KA-BLR-001">
+                    </div>
+                </div>
+
+                <!-- Row 2: Address -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Street Address *</label>
+                    <input type="text" id="hosp-address" class="form-control" placeholder="e.g., 100 Feet Ring Rd, Indiranagar" required>
+                </div>
+
+                <!-- Row 3: City, State, Pincode -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
+                        <input type="text" id="hosp-city" class="form-control" placeholder="Bengaluru" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
+                        <input type="text" id="hosp-state" class="form-control" placeholder="Karnataka" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pincode *</label>
+                        <input type="text" id="hosp-pincode" class="form-control" placeholder="560038" required>
+                    </div>
+                </div>
+
+                <!-- Row 4: Latitude & Longitude -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Latitude (-90 to +90) *</label>
+                        <input type="number" step="any" id="hosp-lat" class="form-control" placeholder="e.g., 12.9716" min="-90" max="90" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Longitude (-180 to +180) *</label>
+                        <input type="number" step="any" id="hosp-lng" class="form-control" placeholder="e.g., 77.5946" min="-180" max="180" required>
+                    </div>
+                </div>
+
+                <!-- Row 5: Phone & Emergency Contact -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">General Phone</label>
+                        <input type="tel" id="hosp-phone" class="form-control" placeholder="e.g., +91 80 25251234">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Emergency ER Contact</label>
+                        <input type="tel" id="hosp-er-contact" class="form-control" placeholder="e.g., +91 80 25259999">
+                    </div>
+                </div>
+
+                <!-- Row 6: Bed Capacity -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Available Beds</label>
+                        <input type="number" min="0" id="hosp-avail-beds" class="form-control" value="15">
+                        <span class="text-[11px] text-muted">Currently available operational beds</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total Beds</label>
+                        <input type="number" min="0" id="hosp-total-beds" class="form-control" value="100">
+                        <span class="text-[11px] text-muted">Total licensed bed capacity</span>
+                    </div>
+                </div>
+
+                <!-- Row 7: Toggles & Capabilities -->
+                <div class="p-3.5 bg-slate-50 border rounded-lg space-y-2.5" style="border-color:var(--border);">
+                    <div class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Emergency Capabilities & Status</div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700">
+                            <input type="checkbox" id="hosp-er-available" checked> 24/7 Emergency Department
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700">
+                            <input type="checkbox" id="hosp-icu-available" checked> ICU Services Available
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2 border-t" style="border-color:var(--border);">
+                        <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700">
+                            <input type="checkbox" id="hosp-accepting" checked> Accepting Ambulances
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-700">
+                            <input type="checkbox" id="hosp-active" checked> Active Status
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="pt-4 border-t flex justify-end gap-3" style="border-color:var(--border);">
+                    <button type="button" class="btn btn-secondary" onclick="closeHospitalModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-hospital">Save Hospital</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Hospital Details Modal -->
+    <div id="hospital-details-modal" class="modal-overlay hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="modal-content" style="background:white;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div class="p-6 border-b flex justify-between items-center" style="border-color:var(--border);">
+                <div>
+                    <h3 id="details-name" style="font-size:1.2rem;font-weight:700;color:var(--navy);margin:0;">Hospital Details</h3>
+                    <span id="details-status-badge" class="badge mt-1">ACTIVE</span>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="closeHospitalDetailsModal()" style="font-size:1.25rem;line-height:1;">✕</button>
+            </div>
+            <div class="p-6 space-y-4" id="details-body">
+                <!-- Populated via JS -->
+            </div>
+            <div class="p-4 border-t bg-slate-50 flex justify-end" style="border-color:var(--border);">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeHospitalDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Hospital Confirmation Modal -->
+    <div id="remove-hospital-modal" class="modal-overlay hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="modal-content" style="background:white;border-radius:12px;max-width:460px;width:100%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);overflow:hidden;">
+            <div class="p-6 border-b" style="border-color:var(--border);">
+                <div class="flex items-center gap-3">
+                    <div style="width:40px;height:40px;border-radius:50%;background:#FEE2E2;color:#EF4444;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+                        🗑️
+                    </div>
+                    <div>
+                        <h3 style="font-size:1.15rem;font-weight:700;color:var(--navy);margin:0;">Remove Hospital?</h3>
+                        <p class="text-xs text-muted" style="margin:2px 0 0 0;">Confirm hospital facility removal</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-3">
+                <div>
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Hospital</span>
+                    <h4 id="remove-modal-name" class="font-bold text-slate-900 text-sm m-0 mt-0.5">Apollo Medical Center</h4>
+                </div>
+
+                <div>
+                    <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Address</span>
+                    <p id="remove-modal-address" class="text-xs text-slate-600 m-0 mt-0.5">143 5th Block, Koramangala, Bengaluru</p>
+                </div>
+
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+                    <span style="font-size:14px;line-height:1;">⚠️</span>
+                    <span>Removing this hospital will make it unavailable for new ambulance destinations.</span>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-slate-50 flex justify-end gap-2" style="border-color:var(--border);">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeRemoveModal()">Cancel</button>
+                <button type="button" class="btn btn-sm" id="btn-confirm-remove" style="background:#EF4444;border-color:#EF4444;color:white;font-weight:600;" onclick="executeRemoveHospital()">
+                    🗑 Remove Hospital
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let allHospitals = [];
+        let filteredHospitals = [];
+        let mapInstance = null;
+        let mapMarkers = [];
+        let markerLayerGroup = null;
+        let searchTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = window.api.getCurrentUser();
+            if (!user || user.role !== 'ADMIN') {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            Shell.init('admin-hospitals');
+            initAdminMap();
+            await loadStats();
+            await loadHospitals();
+
+            setTimeout(() => {
+                if (mapInstance) mapInstance.invalidateSize();
+            }, 250);
+        });
+
+        function initAdminMap() {
+            const container = document.getElementById('admin-hospitals-map');
+            if (!container) return;
+
+            // Base OpenStreetMap View
+            mapInstance = L.map('admin-hospitals-map', {
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView([12.9716, 77.5946], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(mapInstance);
+
+            markerLayerGroup = L.layerGroup().addTo(mapInstance);
+        }
+
+        async function loadStats() {
+            try {
+                const res = await window.api.getAdminHospitalStats();
+                const stats = (res && res.data && (res.data.stats || res.data.total !== undefined)) ? (res.data.stats || res.data) : (res?.stats || {});
+                document.getElementById('stat-total-hospitals').innerText = stats.total != null ? stats.total : 0;
+                document.getElementById('stat-active-hospitals').innerText = stats.active != null ? stats.active : 0;
+                document.getElementById('stat-pending-hospitals').innerText = stats.pendingReview != null ? stats.pendingReview : 0;
+                document.getElementById('stat-rejected-hospitals').innerText = stats.rejected != null ? stats.rejected : 0;
+                document.getElementById('stat-emergency-hospitals').innerText = stats.emergencyReady != null ? stats.emergencyReady : 0;
+            } catch (err) {
+                console.error('Failed to load hospital stats:', err);
+            }
+        }
+
+        async function loadHospitals() {
+            const container = document.getElementById('hospitals-table-container');
+            container.innerHTML = `
+                <div class="text-center py-8 text-muted">
+                    <div class="spinner mb-2"></div>
+                    <p>Loading hospital directory...</p>
+                </div>
+            `;
+
+            const status = document.getElementById('filter-status').value;
+            const emergencyOnly = document.getElementById('filter-emergency').checked;
+            const acceptingOnly = document.getElementById('filter-accepting').checked;
+            const search = document.getElementById('hospital-search-input').value.trim();
+
+            try {
+                const params = {};
+                if (status !== 'ALL') params.status = status;
+                if (emergencyOnly) params.emergencyOnly = 'true';
+                if (acceptingOnly) params.acceptingOnly = 'true';
+                if (search) params.search = search;
+
+                const res = await window.api.getAdminHospitals(params);
+                allHospitals = (res && res.data && (res.data.hospitals || res.data.list)) ? (res.data.hospitals || res.data.list) : (res?.hospitals || (Array.isArray(res?.data) ? res.data : []));
+                filteredHospitals = allHospitals;
+
+                renderTable(filteredHospitals);
+                renderMapMarkers(filteredHospitals);
+                document.getElementById('table-count-label').innerText = `Showing ${filteredHospitals.length} registered hospital facilities`;
+            } catch (err) {
+                console.error('Failed to load hospitals:', err);
+                container.innerHTML = `
+                    <div class="p-6 text-center text-red-600">
+                        <p>Error loading hospitals: ${escapeHtml(err.message || 'Server error')}</p>
+                        <button class="btn btn-sm btn-outline mt-2" onclick="loadHospitals()">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        function handleSearchDebounced() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadHospitals();
+            }, 300);
+        }
+
+        function renderTable(hospitals) {
+            const container = document.getElementById('hospitals-table-container');
+            if (!hospitals || hospitals.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-muted">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏥</div>
+                        <h4 style="font-weight: 700; color: var(--navy); margin-bottom: 0.25rem;">No Hospitals Found</h4>
+                        <p class="text-xs">No hospital facilities matched your current filter criteria.</p>
+                        <button class="btn btn-primary btn-sm mt-3" onclick="openAddHospitalModal()">✚ Add First Hospital</button>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="table w-full">
+                    <thead>
+                        <tr>
+                            <th>Hospital & ID</th>
+                            <th>Location / City</th>
+                            <th>Emergency / ICU</th>
+                            <th>Reported Capacity</th>
+                            <th>Ambulance Receiving</th>
+                            <th>Source / Creator</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            hospitals.forEach(h => {
+                const isActive = (h.active === 1 || h.active === true || h.isActive === 1 || h.isActive === true);
+                const isER = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+                const isICU = (h.icuAvailable === 1 || h.icuAvailable === true);
+                const isAccepting = (h.acceptingAmbulances === 1 || h.acceptingAmbulances === true);
+                const appStatus = (h.approvalStatus || (isActive ? 'ACTIVE' : 'INACTIVE')).toUpperCase();
+                const isPending = appStatus === 'PENDING_REVIEW';
+                const isRejected = appStatus === 'REJECTED';
+                const createdByRole = h.createdByRole ? h.createdByRole.toUpperCase() : 'ADMIN';
+
+                let statusBadgeHtml = '';
+                if (isPending) {
+                    statusBadgeHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;">⏳ Pending Review</span>`;
+                } else if (isRejected) {
+                    statusBadgeHtml = `<span class="badge badge-danger" title="${escapeHtml(h.rejectionReason || 'Rejected')}">⛔ Rejected</span>`;
+                } else if (isActive) {
+                    statusBadgeHtml = `<button class="badge badge-success cursor-pointer" onclick="toggleHospitalStatus(${h.id}, false)" title="Click to deactivate">● Active</button>`;
+                } else {
+                    statusBadgeHtml = `<button class="badge badge-danger cursor-pointer" onclick="toggleHospitalStatus(${h.id}, true)" title="Click to activate">○ Inactive</button>`;
+                }
+
+                html += `
+                    <tr style="${isPending ? 'background: #fffbeb;' : ''}">
+                        <td>
+                            <div class="font-bold text-navy" style="font-size: 13.5px;">${escapeHtml(h.name)}</div>
+                            <div class="text-[11.5px] text-muted flex items-center gap-1 mt-0.5">
+                                <span class="badge badge-gray text-[10px] font-mono">ID #${h.id}</span>
+                                ${h.registrationNumber ? `<span class="text-slate-500 font-mono">${escapeHtml(h.registrationNumber)}</span>` : ''}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="text-xs font-semibold text-slate-800">${escapeHtml(h.city || 'N/A')}, ${escapeHtml(h.state || '')}</div>
+                            <div class="text-[11.5px] text-muted truncate max-w-[200px]" title="${escapeHtml(h.address || '')}">${escapeHtml(h.address || 'Address not set')}</div>
+                            <div class="text-[10.5px] text-slate-500 font-mono mt-0.5">📍 ${h.latitude ? Number(h.latitude).toFixed(4) : 0}, ${h.longitude ? Number(h.longitude).toFixed(4) : 0}</div>
+                        </td>
+                        <td>
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="badge ${isER ? 'badge-success' : 'badge-gray'} text-[11px]">
+                                    ${isER ? '⚡ 24/7 ER Ready' : 'No Emergency'}
+                                </span>
+                                <span class="text-[11px] ${isICU ? 'text-emerald-700 font-semibold' : 'text-slate-500'}">
+                                    ${isICU ? '✓ ICU Operational' : '✗ No ICU'}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="text-xs font-bold text-slate-800">${h.availableBeds != null ? h.availableBeds : 'N/A'} <span class="text-muted font-normal text-[11px]">/ ${h.totalBeds || 0} beds</span></div>
+                            <div class="text-[10.5px] text-muted">${h.availableBeds != null ? 'Reported available beds' : 'Bed availability not provided'}</div>
+                        </td>
+                        <td>
+                            <span class="badge ${isAccepting ? 'badge-blue' : 'badge-warning'} text-[11px]">
+                                ${isAccepting ? '🚑 Accepting Ambulances' : '⛔ Not Accepting'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="text-xs font-semibold ${createdByRole === 'AMBULANCE' ? 'text-indigo-600' : 'text-slate-700'}">
+                                ${createdByRole === 'AMBULANCE' ? '🚑 Ambulance Driver' : '🛡️ Admin'}
+                            </div>
+                            <div class="text-[10.5px] text-muted">${h.createdAt ? escapeHtml(h.createdAt.substring(0, 10)) : 'Registered'}</div>
+                        </td>
+                        <td>
+                            ${statusBadgeHtml}
+                        </td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                ${isPending ? `
+                                    <button class="btn btn-sm btn-primary" style="background:#059669; border-color:#059669; padding: 4px 8px; font-size: 11px;" onclick="approveHospital(${h.id}, '${escapeHtml(h.name)}')" title="Approve hospital">
+                                        ✓ Approve
+                                    </button>
+                                    <button class="btn btn-sm btn-outline text-red-600" style="padding: 4px 8px; font-size: 11px;" onclick="rejectHospital(${h.id}, '${escapeHtml(h.name)}')" title="Reject hospital">
+                                        ✗ Reject
+                                    </button>
+                                ` : (isRejected ? `
+                                    <button class="btn btn-sm btn-outline text-emerald-600" style="padding: 4px 8px; font-size: 11px;" onclick="approveHospital(${h.id}, '${escapeHtml(h.name)}')" title="Re-approve hospital">
+                                        ✓ Re-Approve
+                                    </button>
+                                ` : '')}
+                                <button class="btn btn-ghost btn-sm" onclick="focusHospitalOnMap(${h.id})" title="View on map">
+                                    🗺️
+                                </button>
+                                <button class="btn btn-ghost btn-sm" onclick="viewHospitalDetails(${h.id})" title="View full details">
+                                    👁️
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="openEditHospitalModal(${h.id})" title="Edit hospital">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn btn-outline btn-sm text-red-600 border-red-200" style="padding: 4px 8px; font-size: 11px;" onclick="promptRemoveHospital(${h.id})" title="Remove hospital">
+                                    🗑 Remove
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        function renderMapMarkers(hospitals) {
+            if (!mapInstance) return;
+
+            mapInstance.invalidateSize();
+
+            if (!markerLayerGroup) {
+                markerLayerGroup = L.layerGroup().addTo(mapInstance);
+            }
+            markerLayerGroup.clearLayers();
+            mapMarkers = [];
+
+            const bounds = [];
+
+            if (!hospitals || hospitals.length === 0) {
+                // If zero hospitals, preserve standard base OSM view without fake markers
+                mapInstance.setView([12.9716, 77.5946], 12);
+                return;
+            }
+
+            hospitals.forEach(h => {
+                const lat = Number(h.latitude);
+                const lng = Number(h.longitude);
+
+                if (!isNaN(lat) && !isNaN(lng) && Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    const isActive = (h.active === 1 || h.active === true || h.isActive === 1 || h.isActive === true);
+                    const isER = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+                    const isICU = (h.icuAvailable === 1 || h.icuAvailable === true);
+                    const isAccepting = (h.acceptingAmbulances === 1 || h.acceptingAmbulances === true);
+                    const appStatus = (h.approvalStatus || (isActive ? 'ACTIVE' : 'INACTIVE')).toUpperCase();
+                    const isPending = appStatus === 'PENDING_REVIEW';
+                    const isRejected = appStatus === 'REJECTED';
+
+                    let pinColor = '#94A3B8';
+                    let pinLabel = 'INACTIVE';
+                    if (isPending) {
+                        pinColor = '#F59E0B';
+                        pinLabel = 'PENDING REVIEW';
+                    } else if (isActive && isER) {
+                        pinColor = '#10B981';
+                        pinLabel = 'EMERGENCY READY';
+                    } else if (isActive) {
+                        pinColor = '#2563EB';
+                        pinLabel = 'ACTIVE';
+                    }
+
+                    const icon = L.divIcon({
+                        className: 'hosp-pin-wrapper',
+                        html: `<div class="hosp-pin" style="background:${pinColor}; color:white;">🏥</div>`,
+                        iconSize: [34, 34],
+                        iconAnchor: [17, 17],
+                        popupAnchor: [0, -18]
+                    });
+
+                    const marker = L.marker([lat, lng], { icon }).addTo(markerLayerGroup);
+                    
+                    const popupContent = `
+                        <div style="font-family: var(--font-family); min-width: 230px;">
+                            <div style="font-size: 13.5px; font-weight: 700; color: #0f172a;">${escapeHtml(h.name)}</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${escapeHtml(h.address || '')}, ${escapeHtml(h.city || '')}, ${escapeHtml(h.state || '')} ${h.pincode ? '- ' + escapeHtml(h.pincode) : ''}</div>
+                            ${h.phone ? `<div style="font-size: 11px; color: #334155; margin-top: 2px;">📞 ${escapeHtml(h.phone)}</div>` : ''}
+                            ${h.emergencyContact ? `<div style="font-size: 11px; color: #dc2626; margin-top: 1px;">🚨 ER: ${escapeHtml(h.emergencyContact)}</div>` : ''}
+                            
+                            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+                                <div><strong>Emergency:</strong> <span style="color: ${isER ? '#059669' : '#dc2626'}; font-weight: 600;">${isER ? '⚡ 24/7 Available' : 'Not Available'}</span></div>
+                                <div><strong>ICU:</strong> <span style="font-weight: 600;">${isICU ? 'Available' : 'None'}</span></div>
+                                <div><strong>Available Beds:</strong> <span style="font-weight: 600;">${h.availableBeds != null ? h.availableBeds + ' beds' : 'Not provided'}</span></div>
+                                <div><strong>Accepting Ambulances:</strong> <span style="color: ${isAccepting ? '#059669' : '#d97706'}; font-weight: 600;">${isAccepting ? '✓ Yes' : '⛔ No'}</span></div>
+                                <div><strong>Status:</strong> <span style="font-weight: 700; color: ${pinColor};">${pinLabel}</span></div>
+                                ${h.createdByRole === 'AMBULANCE' ? `<div style="color: #4f46e5; font-size: 10px;">Submitted by Ambulance Driver</div>` : ''}
+                            </div>
+
+                            <div style="margin-top: 8px; display: flex; gap: 6px;">
+                                ${isPending ? `
+                                    <button class="btn btn-primary btn-sm" style="flex:1; background:#059669; font-size: 11px; padding: 4px 8px;" onclick="approveHospital(${h.id}, '${escapeHtml(h.name)}')">Approve</button>
+                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px;" onclick="rejectHospital(${h.id}, '${escapeHtml(h.name)}')">Reject</button>
+                                ` : `
+                                    <button class="btn btn-primary btn-sm" style="flex:1; font-size: 11px; padding: 4px 8px;" onclick="openEditHospitalModal(${h.id})">Edit Hospital</button>
+                                    <button class="btn btn-outline btn-sm text-red-600" style="font-size: 11px; padding: 4px 8px;" onclick="promptRemoveHospital(${h.id})">🗑 Remove</button>
+                                `}
+                            </div>
+                        </div>
+                    `;
+
+                    marker.bindPopup(popupContent);
+                    marker.hospitalId = h.id;
+                    mapMarkers.push(marker);
+                    bounds.push([lat, lng]);
+                }
+            });
+
+            if (bounds.length > 1) {
+                mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+            } else if (bounds.length === 1) {
+                mapInstance.setView(bounds[0], 14);
+            }
+        }
+
+        async function approveHospital(hospitalId, name) {
+            if (!confirm(`Are you sure you want to approve and activate "${name}"? It will become immediately eligible as an ambulance emergency destination.`)) {
+                return;
+            }
+
+            try {
+                await window.api.approveAdminHospital(hospitalId);
+                if (window.toast) window.toast.success(`"${name}" approved and activated.`);
+                await loadStats();
+                await loadHospitals();
+            } catch (err) {
+                if (window.toast) window.toast.error('Failed to approve hospital: ' + (err.message || 'Server error'));
+                else alert('Failed to approve hospital: ' + (err.message || 'Server error'));
+            }
+        }
+
+        async function rejectHospital(hospitalId, name) {
+            const reason = prompt(`Enter rejection reason for "${name}":`, 'Unverified facility information or invalid emergency capabilities.');
+            if (reason === null) return; // User clicked Cancel
+
+            try {
+                await window.api.rejectAdminHospital(hospitalId, reason);
+                if (window.toast) window.toast.success(`"${name}" has been marked as rejected.`);
+                await loadStats();
+                await loadHospitals();
+            } catch (err) {
+                if (window.toast) window.toast.error('Failed to reject hospital: ' + (err.message || 'Server error'));
+                else alert('Failed to reject hospital: ' + (err.message || 'Server error'));
+            }
+        }
+
+        function focusHospitalOnMap(hospitalId) {
+            const marker = mapMarkers.find(m => m.hospitalId === hospitalId);
+            if (marker) {
+                mapInstance.setView(marker.getLatLng(), 15);
+                marker.openPopup();
+                window.scrollTo({ top: document.getElementById('admin-hospitals-map').offsetTop - 80, behavior: 'smooth' });
+            } else {
+                if (window.toast) window.toast.warning('No valid coordinates found on map for this hospital.');
+                else alert('No valid coordinates found on map for this hospital.');
+            }
+        }
+
+        function openAddHospitalModal() {
+            document.getElementById('modal-title').innerText = 'Add Hospital';
+            document.getElementById('hospital-id').value = '';
+            document.getElementById('hosp-name').value = '';
+            document.getElementById('hosp-reg').value = '';
+            document.getElementById('hosp-address').value = '';
+            document.getElementById('hosp-city').value = 'Bengaluru';
+            document.getElementById('hosp-state').value = 'Karnataka';
+            document.getElementById('hosp-pincode').value = '560001';
+            document.getElementById('hosp-lat').value = '12.9716';
+            document.getElementById('hosp-lng').value = '77.5946';
+            document.getElementById('hosp-phone').value = '';
+            document.getElementById('hosp-er-contact').value = '';
+            document.getElementById('hosp-avail-beds').value = '15';
+            document.getElementById('hosp-total-beds').value = '100';
+            document.getElementById('hosp-er-available').checked = true;
+            document.getElementById('hosp-icu-available').checked = true;
+            document.getElementById('hosp-accepting').checked = true;
+            document.getElementById('hosp-active').checked = true;
+
+            const modal = document.getElementById('hospital-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('active', 'open');
+        }
+
+        function openEditHospitalModal(hospitalId) {
+            const h = allHospitals.find(item => item.id === hospitalId);
+            if (!h) return;
+
+            document.getElementById('modal-title').innerText = 'Edit Hospital (ID #' + h.id + ')';
+            document.getElementById('hospital-id').value = h.id;
+            document.getElementById('hosp-name').value = h.name || '';
+            document.getElementById('hosp-reg').value = h.registrationNumber || '';
+            document.getElementById('hosp-address').value = h.address || '';
+            document.getElementById('hosp-city').value = h.city || '';
+            document.getElementById('hosp-state').value = h.state || '';
+            document.getElementById('hosp-pincode').value = h.pincode || '';
+            document.getElementById('hosp-lat').value = h.latitude != null ? h.latitude : '';
+            document.getElementById('hosp-lng').value = h.longitude != null ? h.longitude : '';
+            document.getElementById('hosp-phone').value = h.phone || '';
+            document.getElementById('hosp-er-contact').value = h.emergencyContact || '';
+            document.getElementById('hosp-avail-beds').value = h.availableBeds != null ? h.availableBeds : 0;
+            document.getElementById('hosp-total-beds').value = h.totalBeds != null ? h.totalBeds : 0;
+            document.getElementById('hosp-er-available').checked = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+            document.getElementById('hosp-icu-available').checked = (h.icuAvailable === 1 || h.icuAvailable === true);
+            document.getElementById('hosp-accepting').checked = (h.acceptingAmbulances === 1 || h.acceptingAmbulances === true);
+            document.getElementById('hosp-active').checked = (h.active === 1 || h.active === true);
+
+            const modal = document.getElementById('hospital-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('active', 'open');
+        }
+
+        function closeHospitalModal() {
+            const modal = document.getElementById('hospital-modal');
+            modal.classList.remove('active', 'open');
+            modal.classList.add('hidden');
+        }
+
+        async function handleHospitalSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('hospital-id').value;
+            const btn = document.getElementById('btn-save-hospital');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const name = document.getElementById('hosp-name').value.trim();
+            const address = document.getElementById('hosp-address').value.trim();
+            const city = document.getElementById('hosp-city').value.trim();
+            const state = document.getElementById('hosp-state').value.trim();
+            const pincode = document.getElementById('hosp-pincode').value.trim();
+            const latVal = document.getElementById('hosp-lat').value;
+            const lngVal = document.getElementById('hosp-lng').value;
+            const latitude = parseFloat(latVal);
+            const longitude = parseFloat(lngVal);
+
+            // Validation
+            if (!name || !address || !city || !state || !pincode) {
+                if (window.toast) window.toast.error('Hospital Name, Address, City, State, and Pincode are required.');
+                else alert('Hospital Name, Address, City, State, and Pincode are required.');
+                btn.disabled = false;
+                btn.innerText = 'Save Hospital';
+                return;
+            }
+
+            if (isNaN(latitude) || isNaN(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                if (window.toast) window.toast.error('Please enter valid Latitude (-90 to +90) and Longitude (-180 to +180).');
+                else alert('Please enter valid Latitude (-90 to +90) and Longitude (-180 to +180).');
+                btn.disabled = false;
+                btn.innerText = 'Save Hospital';
+                return;
+            }
+
+            const payload = {
+                name: name,
+                registrationNumber: document.getElementById('hosp-reg').value.trim(),
+                address: address,
+                city: city,
+                state: state,
+                pincode: pincode,
+                latitude: latitude,
+                longitude: longitude,
+                phone: document.getElementById('hosp-phone').value.trim(),
+                emergencyContact: document.getElementById('hosp-er-contact').value.trim(),
+                availableBeds: parseInt(document.getElementById('hosp-avail-beds').value, 10) || 0,
+                totalBeds: parseInt(document.getElementById('hosp-total-beds').value, 10) || 0,
+                emergencyAvailable: document.getElementById('hosp-er-available').checked,
+                icuAvailable: document.getElementById('hosp-icu-available').checked,
+                acceptingAmbulances: document.getElementById('hosp-accepting').checked,
+                active: document.getElementById('hosp-active').checked,
+                isActive: document.getElementById('hosp-active').checked
+            };
+
+            try {
+                if (id) {
+                    payload.id = parseInt(id, 10);
+                    await window.api.updateAdminHospital(payload.id, payload);
+                    if (window.toast) window.toast.success('Hospital updated successfully.');
+                    else alert('Hospital updated successfully.');
+                } else {
+                    await window.api.createAdminHospital(payload);
+                    if (window.toast) window.toast.success('Hospital added successfully.');
+                    else alert('Hospital added successfully.');
+                }
+
+                closeHospitalModal();
+                await loadStats();
+                await loadHospitals();
+            } catch (err) {
+                console.error('Error saving hospital:', err);
+                const errMsg = err.message || 'Unknown error occurred while saving hospital';
+                if (window.toast) window.toast.error(errMsg);
+                else alert(errMsg);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Hospital';
+            }
+        }
+
+        async function toggleHospitalStatus(hospitalId, newStatus) {
+            try {
+                await window.api.updateAdminHospitalStatus(hospitalId, newStatus);
+                if (window.toast) window.toast.success(`Hospital marked as ${newStatus ? 'Active' : 'Inactive'}`);
+                await loadStats();
+                await loadHospitals();
+            } catch (err) {
+                if (window.toast) window.toast.error('Failed to update hospital status: ' + err.message);
+                else alert('Failed to update hospital status: ' + err.message);
+            }
+        }
+
+        let pendingRemovalHospitalId = null;
+
+        function promptRemoveHospital(hospitalId) {
+            const h = allHospitals.find(item => item.id === hospitalId);
+            if (!h) return;
+
+            pendingRemovalHospitalId = hospitalId;
+            document.getElementById('remove-modal-name').innerText = h.name || 'Hospital Facility';
+            document.getElementById('remove-modal-address').innerText = `${h.address || ''}, ${h.city || ''}, ${h.state || ''} ${h.pincode || ''}`.trim().replace(/^,\s*/, '') || 'Address details';
+
+            const modal = document.getElementById('remove-hospital-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('active', 'open');
+        }
+
+        function closeRemoveModal() {
+            pendingRemovalHospitalId = null;
+            const modal = document.getElementById('remove-hospital-modal');
+            modal.classList.remove('active', 'open');
+            modal.classList.add('hidden');
+        }
+
+        async function executeRemoveHospital() {
+            if (!pendingRemovalHospitalId) return;
+
+            const btn = document.getElementById('btn-confirm-remove');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerText = 'Removing...';
+
+            try {
+                await window.api.deleteAdminHospital(pendingRemovalHospitalId);
+                if (window.toast) {
+                    window.toast.success('Hospital removed successfully.');
+                } else {
+                    alert('Hospital removed successfully.');
+                }
+                closeRemoveModal();
+                await loadStats();
+                await loadHospitals();
+            } catch (err) {
+                console.error('Error removing hospital:', err);
+                const errMsg = err.message || 'Failed to remove hospital record.';
+                if (window.toast) {
+                    window.toast.error(errMsg);
+                } else {
+                    alert(errMsg);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        function viewHospitalDetails(hospitalId) {
+            const h = allHospitals.find(item => item.id === hospitalId);
+            if (!h) return;
+
+            const isActive = (h.active === 1 || h.active === true);
+            const isER = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+            const isICU = (h.icuAvailable === 1 || h.icuAvailable === true);
+            const isAccepting = (h.acceptingAmbulances === 1 || h.acceptingAmbulances === true);
+
+            document.getElementById('details-name').innerText = h.name;
+            const badge = document.getElementById('details-status-badge');
+            badge.className = `badge ${isActive ? 'badge-success' : 'badge-danger'} mt-1`;
+            badge.innerText = isActive ? 'ACTIVE' : 'INACTIVE';
+
+            document.getElementById('details-body').innerHTML = `
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Registration / Reference</strong>
+                        <span class="font-mono text-slate-800 text-xs">${escapeHtml(h.registrationNumber || 'None')} (ID #${h.id})</span>
+                    </div>
+                    <div>
+                        <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Address & City</strong>
+                        <span class="text-slate-800">${escapeHtml(h.address || '')}, ${escapeHtml(h.city || '')}, ${escapeHtml(h.state || '')} - ${escapeHtml(h.pincode || '')}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t" style="border-color:var(--border);">
+                        <div>
+                            <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Phone</strong>
+                            <span class="font-semibold text-slate-800">📞 ${escapeHtml(h.phone || 'N/A')}</span>
+                        </div>
+                        <div>
+                            <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Emergency ER Contact</strong>
+                            <span class="font-semibold text-red-600">🚨 ${escapeHtml(h.emergencyContact || 'N/A')}</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t" style="border-color:var(--border);">
+                        <div>
+                            <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Coordinates</strong>
+                            <span class="font-mono text-slate-800 font-semibold">${h.latitude ? Number(h.latitude).toFixed(6) : 0}, ${h.longitude ? Number(h.longitude).toFixed(6) : 0}</span>
+                        </div>
+                        <div>
+                            <strong class="text-slate-500 uppercase tracking-wider block text-[10px]">Reported Capacity</strong>
+                            <span class="font-bold text-slate-800">${h.availableBeds != null ? h.availableBeds : 'N/A'} available / ${h.totalBeds || 0} total</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded border space-y-1.5 pt-2" style="border-color:var(--border);">
+                        <div><strong>24/7 ER:</strong> ${isER ? '⚡ Available' : 'Not available'}</div>
+                        <div><strong>ICU Care:</strong> ${isICU ? '✓ Available' : 'Not available'}</div>
+                        <div><strong>Ambulance Inbound:</strong> ${isAccepting ? '🚑 Accepting Ambulances' : '⛔ Not Accepting'}</div>
+                    </div>
+                </div>
+            `;
+
+            const modal = document.getElementById('hospital-details-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('active', 'open');
+        }
+
+        function closeHospitalDetailsModal() {
+            const modal = document.getElementById('hospital-details-modal');
+            modal.classList.remove('active', 'open');
+            modal.classList.add('hidden');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

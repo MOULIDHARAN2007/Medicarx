@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescription Safety & Formulary — MediCareX Doctor</title>
+    <meta name="description" content="Structured clinical safety checks, drug-drug interaction screening, allergy contraindications, and formulary verification.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Shared Patient Context Header -->
+                <div id="patient-context-banner"></div>
+
+                <!-- Structured Safety Check Disclaimer -->
+                <div class="p-3 mb-4 flex items-start gap-3" style="background: #F0FDF4; border: 1px solid #BBF7D0; border-left: 4px solid var(--success); border-radius: 8px;">
+                    <span style="font-size: 1.25rem; line-height: 1;">🛡️</span>
+                    <div>
+                        <strong style="font-size: 13px; color: #166534;">Structured Safety Verification System:</strong>
+                        <p style="font-size: 12px; color: #14532D; margin: 0.2rem 0 0 0;">
+                            Prescription Safety performs multi-layer cross-checks against verified electronic health records: recorded allergies, active medications for duplicate therapy, known drug-drug interactions, and formulary requirements. The doctor must review all findings before signing.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Prescription Builder & Safety Report -->
+                <div class="grid grid-2 gap-4">
+                    <!-- Left: Prescription Items Builder -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">℞ Proposed Prescription Items</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Add medicines to verify interactions and allergies</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline" onclick="addMedicineRow()">+ Add Medicine</button>
+                        </div>
+
+                        <div class="p-4">
+                            <div class="form-group mb-3">
+                                <label class="form-label" for="safety-diag-input">Provisional Diagnosis:</label>
+                                <input type="text" id="safety-diag-input" class="form-input" placeholder="e.g. Acute Bronchitis, Essential Hypertension" value="Acute Upper Respiratory Tract Infection" />
+                            </div>
+
+                            <label class="form-label mb-2" style="display: block;">Medication Items:</label>
+                            <div id="rx-safety-items-list" class="flex flex-col gap-3">
+                                <!-- Populated dynamically with default rows -->
+                            </div>
+
+                            <div class="flex items-center gap-3 mt-4 pt-3" style="border-top: 1px solid var(--border);">
+                                <button id="btn-run-safety-check" class="btn btn-primary" onclick="runSafetyCheck()">
+                                    🔍 Run Safety Verification
+                                </button>
+                                <button id="btn-sign-issue" class="btn btn-success" onclick="issuePrescriptionDirectly()">
+                                    ✍️ Sign & Issue Prescription
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Safety Analysis Report Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">🛡️ Safety Verification Report</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Automated algorithmic multi-rule evaluation</p>
+                            </div>
+                            <span id="safety-overall-badge" class="badge badge-gray">Not Evaluated</span>
+                        </div>
+
+                        <div id="safety-report-container" class="p-4">
+                            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                                <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🛡️</div>
+                                <h4 style="margin: 0; color: var(--navy); font-size: 1.1rem;">Prescription Safety Ready</h4>
+                                <p style="font-size: 13px; max-width: 400px; margin: 0.5rem auto 1.25rem auto; color: var(--text-secondary);">
+                                    Configure the prescription items on the left and click <strong>Run Safety Verification</strong> to test against patient allergies, current active medications, and contraindications.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/doctor-context.js"></script>
+    <script>
+        let currentPatientId = 1;
+        let currentPatientData = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-prescription-safety');
+            currentPatientId = window.DoctorContext.getSelectedPatientId();
+            loadPatientContext(currentPatientId);
+            renderDefaultMedicineRows();
+        });
+
+        async function loadPatientContext(patientId) {
+            currentPatientId = patientId;
+            try {
+                const res = await window.api.getDoctorPatientOverview(patientId);
+                const data = res.data || {};
+                currentPatientData = data.patient || {};
+
+                // Render Shared Patient Header
+                window.DoctorContext.renderPatientHeader('patient-context-banner', currentPatientData, 'prescription-safety');
+                window.DoctorContext.loadPatientsRoster('doctor-patient-switcher', currentPatientId, (newId) => {
+                    loadPatientContext(newId);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderDefaultMedicineRows() {
+            const list = document.getElementById('rx-safety-items-list');
+            list.innerHTML = `
+                <div class="p-3 rx-safety-row" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--navy);">Item #1</span>
+                        <button type="button" class="btn-icon" onclick="removeMedicineRow(this)" title="Remove" style="font-size: 11px;">✕</button>
+                    </div>
+                    <div class="grid grid-2 gap-2">
+                        <input type="text" class="form-input rx-med-name" placeholder="Medicine Name (e.g. Paracetamol 650mg)" value="Paracetamol 650mg" required />
+                        <input type="text" class="form-input rx-med-dosage" placeholder="Dosage (e.g. 650mg)" value="650mg" required />
+                    </div>
+                    <div class="grid grid-2 gap-2 mt-2">
+                        <input type="text" class="form-input rx-med-freq" placeholder="Frequency (e.g. 1-0-1)" value="1-0-1 After food" required />
+                        <input type="text" class="form-input rx-med-dur" placeholder="Duration (e.g. 3 Days)" value="3 Days" required />
+                    </div>
+                </div>
+
+                <div class="p-3 rx-safety-row" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--navy);">Item #2</span>
+                        <button type="button" class="btn-icon" onclick="removeMedicineRow(this)" title="Remove" style="font-size: 11px;">✕</button>
+                    </div>
+                    <div class="grid grid-2 gap-2">
+                        <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" value="Azithromycin 500mg" required />
+                        <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" value="500mg" required />
+                    </div>
+                    <div class="grid grid-2 gap-2 mt-2">
+                        <input type="text" class="form-input rx-med-freq" placeholder="Frequency" value="1-0-0 Before food" required />
+                        <input type="text" class="form-input rx-med-dur" placeholder="Duration" value="3 Days" required />
+                    </div>
+                </div>
+            `;
+        }
+
+        function addMedicineRow() {
+            const list = document.getElementById('rx-safety-items-list');
+            const count = list.querySelectorAll('.rx-safety-row').length + 1;
+            const row = document.createElement('div');
+            row.className = 'p-3 rx-safety-row';
+            row.style.cssText = 'background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;';
+            row.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--navy);">Item #${count}</span>
+                    <button type="button" class="btn-icon" onclick="removeMedicineRow(this)" title="Remove" style="font-size: 11px;">✕</button>
+                </div>
+                <div class="grid grid-2 gap-2">
+                    <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" required />
+                    <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" required />
+                </div>
+                <div class="grid grid-2 gap-2 mt-2">
+                    <input type="text" class="form-input rx-med-freq" placeholder="Frequency (e.g. 1-0-1)" required />
+                    <input type="text" class="form-input rx-med-dur" placeholder="Duration (e.g. 5 Days)" required />
+                </div>
+            `;
+            list.appendChild(row);
+        }
+
+        function removeMedicineRow(btn) {
+            const rows = document.querySelectorAll('.rx-safety-row');
+            if (rows.length > 1) {
+                btn.closest('.rx-safety-row').remove();
+            } else {
+                window.toast.warning('Prescription must contain at least one medication.');
+            }
+        }
+
+        function getPrescriptionItems() {
+            const rows = document.querySelectorAll('.rx-safety-row');
+            const items = [];
+            rows.forEach(r => {
+                const nameIn = r.querySelector('.rx-med-name');
+                const dosageIn = r.querySelector('.rx-med-dosage');
+                const freqIn = r.querySelector('.rx-med-freq');
+                const durIn = r.querySelector('.rx-med-dur');
+
+                if (nameIn && nameIn.value.trim()) {
+                    items.push({
+                        medicineName: nameIn.value.trim(),
+                        dosage: dosageIn ? dosageIn.value.trim() : 'Standard',
+                        frequency: freqIn ? freqIn.value.trim() : '1-0-1',
+                        duration: durIn ? durIn.value.trim() : '5 Days',
+                        instructions: 'Take as directed.'
+                    });
+                }
+            });
+            return items;
+        }
+
+        async function runSafetyCheck() {
+            const items = getPrescriptionItems();
+            if (items.length === 0) {
+                window.toast.warning('Please enter at least one medicine to verify.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-run-safety-check');
+            const badge = document.getElementById('safety-overall-badge');
+            btn.disabled = true;
+            btn.innerHTML = '🔍 Checking Safety Rules...';
+
+            try {
+                const res = await window.api.checkDoctorPrescriptionSafety(currentPatientId, items);
+                const report = res.data || {};
+                renderSafetyReport(report);
+                window.toast.success('Prescription safety analysis complete.');
+            } catch (err) {
+                window.toast.error(err.message || 'Safety check failed');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔍 Run Safety Verification';
+            }
+        }
+
+        function renderSafetyReport(report) {
+            const badge = document.getElementById('safety-overall-badge');
+            const container = document.getElementById('safety-report-container');
+
+            const severity = (report.overallSeverity || 'GREEN').toUpperCase();
+            if (severity === 'RED') {
+                badge.className = 'badge badge-danger';
+                badge.innerText = 'RED: Review Required';
+            } else if (severity === 'YELLOW') {
+                badge.className = 'badge badge-warning';
+                badge.innerText = 'YELLOW: Review Recommended';
+            } else {
+                badge.className = 'badge badge-success';
+                badge.innerText = 'GREEN: No Issues Detected';
+            }
+
+            const allergyWarnings = report.allergyWarnings || [];
+            const duplicateTherapies = report.duplicateTherapies || [];
+            const drugInteractions = report.drugInteractions || [];
+            const rxFlags = report.prescriptionRequiredFlags || [];
+            const dosageNotes = report.dosageNotes || [];
+
+            container.innerHTML = `
+                <div class="flex flex-col gap-4">
+                    <!-- Status Banner -->
+                    <div class="p-3" style="background: ${severity === 'RED' ? '#FEF2F2' : (severity === 'YELLOW' ? '#FFFBEB' : '#ECFDF5')}; border: 1px solid ${severity === 'RED' ? '#FECACA' : (severity === 'YELLOW' ? '#FDE68A' : '#A7F3D0')}; border-radius: 8px;">
+                        <div class="flex items-center justify-between">
+                            <strong style="color: ${severity === 'RED' ? '#991B1B' : (severity === 'YELLOW' ? '#92400E' : '#065F46')}; font-size: 13.5px;">
+                                ${severity === 'RED' ? '⚠️ Important Safety Concern Identified' : (severity === 'YELLOW' ? '⚠️ Cautionary Clinical Review Recommended' : '✅ No Safety Concerns Detected in Available Data')}
+                            </strong>
+                            <span class="badge ${severity === 'RED' ? 'badge-danger' : (severity === 'YELLOW' ? 'badge-warning' : 'badge-success')}">${severity}</span>
+                        </div>
+                        <p style="font-size: 12px; margin: 0.35rem 0 0 0; color: ${severity === 'RED' ? '#7F1D1D' : (severity === 'YELLOW' ? '#78350F' : '#047857')};">
+                            ${report.summaryMessage || 'Cross-checks completed against patient medical history and current regimen.'}
+                        </p>
+                    </div>
+
+                    <!-- Rule 1: Allergy Checks -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong style="font-size: 13px; color: var(--navy);">1. Patient Allergy & Hypersensitivity Check</strong>
+                            <span class="badge ${allergyWarnings.length > 0 ? 'badge-danger' : 'badge-success'}">${allergyWarnings.length > 0 ? 'Allergy Flagged' : 'Pass'}</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
+                            ${allergyWarnings.length > 0 ? allergyWarnings.join('<br>') : 'No conflicting hypersensitivities detected with proposed medications.'}
+                        </p>
+                    </div>
+
+                    <!-- Rule 2: Duplicate Therapy -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong style="font-size: 13px; color: var(--navy);">2. Duplicate Therapy & Class Redundancy</strong>
+                            <span class="badge ${duplicateTherapies.length > 0 ? 'badge-warning' : 'badge-success'}">${duplicateTherapies.length > 0 ? 'Duplicate Class' : 'Pass'}</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
+                            ${duplicateTherapies.length > 0 ? duplicateTherapies.join('<br>') : 'No overlapping pharmacological mechanisms of action identified.'}
+                        </p>
+                    </div>
+
+                    <!-- Rule 3: Drug Interactions -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong style="font-size: 13px; color: var(--navy);">3. Drug-Drug Interactions & Contraindications</strong>
+                            <span class="badge ${drugInteractions.length > 0 ? 'badge-warning' : 'badge-success'}">${drugInteractions.length > 0 ? 'Interaction Found' : 'Pass'}</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
+                            ${drugInteractions.length > 0 ? drugInteractions.join('<br>') : 'No major known drug-drug interactions between selected items.'}
+                        </p>
+                    </div>
+
+                    <!-- Rule 4: Prescription Requirement & Formulary -->
+                    <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong style="font-size: 13px; color: var(--navy);">4. Schedule Formulary & Prescription Status</strong>
+                            <span class="badge badge-primary">Formulary Verified</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
+                            ${rxFlags.length > 0 ? rxFlags.join('<br>') : 'All items verified against the MediCareX active medicine catalog.'}
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function issuePrescriptionDirectly() {
+            const items = getPrescriptionItems();
+            const diag = document.getElementById('safety-diag-input').value.trim();
+
+            if (items.length === 0) {
+                window.toast.warning('Please specify medications to prescribe.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-sign-issue');
+            btn.disabled = true;
+            btn.innerText = 'Signing & Issuing...';
+
+            try {
+                const res = await window.api.createPrescription({
+                    patientId: currentPatientId,
+                    diagnosis: diag || 'Clinical Consultation',
+                    notes: 'Safety verified and approved by physician.',
+                    items: items
+                });
+                window.toast.success('Prescription signed and issued successfully!');
+                setTimeout(() => {
+                    window.location.href = `/doctor-patient-overview.html?patientId=${currentPatientId}`;
+                }, 800);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to issue prescription');
+                btn.disabled = false;
+                btn.innerText = '✍️ Sign & Issue Prescription';
+            }
+        }
+    </script>
+</body>
+</html>

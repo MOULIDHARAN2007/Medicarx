@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Ambulance Center — MediCareX</title>
+    <meta name="description" content="Instant Emergency Medical Assistance and Live Ambulance Dispatch Tracking with Realtime GPS and Nearest Hospital Navigation.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .sos-hero-card {
+            background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+            color: #ffffff;
+            border-radius: var(--radius-xl);
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(185, 28, 28, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        }
+
+        .sos-btn-giant {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #b91c1c;
+            border: 6px solid rgba(255, 255, 255, 0.6);
+            font-size: 1.5rem;
+            font-weight: 900;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 35px rgba(255, 255, 255, 0.6);
+            animation: pulse-ring 2s infinite;
+        }
+
+        .sos-btn-giant:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.9);
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 25px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        .stepper-container {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin: 2rem 0;
+        }
+
+        .stepper-container::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 4px;
+            background: var(--border);
+            z-index: 1;
+        }
+
+        .stepper-step {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 80px;
+        }
+
+        .stepper-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .stepper-step.active .stepper-circle {
+            border-color: #ef4444;
+            background: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+        }
+
+        .stepper-step.completed .stepper-circle {
+            border-color: #10b981;
+            background: #10b981;
+            color: #ffffff;
+        }
+
+        .stepper-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .stepper-step.active .stepper-label {
+            color: #ef4444;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title text-danger">Emergency Medical & Ambulance Center</h1>
+                    <p class="text-muted">Direct dispatch to nearest life-support ambulance units & real-time ETA tracking.</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/patient-emergency-card.html" class="btn btn-secondary">
+                        <span>🛡️ Emergency ID Card</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Active Emergency Tracker (Visible if active request exists) -->
+            <div id="active-emergency-card" style="display: none;" class="card border-2 border-danger shadow-lg mt-6">
+                <div class="card-header bg-danger-subtle flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="badge badge-danger text-sm animate-pulse">● LIVE DISPATCH ACTIVE</span>
+                        <span class="text-xs text-muted" id="active-req-time"></span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="promptCancelEmergency()">
+                        Cancel Request
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div class="flex justify-between items-center flex-wrap gap-4 mb-4">
+                        <div>
+                            <span class="text-xs text-muted uppercase font-bold tracking-wider">Emergency Status</span>
+                            <h2 class="text-2xl font-black text-danger mt-0.5" id="active-status-text">DISPATCHING...</h2>
+                            <p class="text-sm text-muted mt-1" id="active-status-desc">Locating nearest available ambulance unit...</p>
+                        </div>
+                        <div class="text-right bg-slate-100 p-4 rounded-xl border border-slate-200">
+                            <span class="text-xs text-muted uppercase font-bold tracking-wider">Estimated Arrival</span>
+                            <div class="text-3xl font-black text-primary" id="active-eta-text">~5 Mins</div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Step Tracker -->
+                    <div class="stepper-container" id="stepper">
+                        <div class="stepper-step" id="step-requested">
+                            <div class="stepper-circle">1</div>
+                            <span class="stepper-label">Requested</span>
+                        </div>
+                        <div class="stepper-step" id="step-assigned">
+                            <div class="stepper-circle">2</div>
+                            <span class="stepper-label">Assigned</span>
+                        </div>
+                        <div class="stepper-step" id="step-enroute">
+                            <div class="stepper-circle">3</div>
+                            <span class="stepper-label">En Route</span>
+                        </div>
+                        <div class="stepper-step" id="step-arrived">
+                            <div class="stepper-circle">4</div>
+                            <span class="stepper-label">Arrived</span>
+                        </div>
+                        <div class="stepper-step" id="step-transport">
+                            <div class="stepper-circle">5</div>
+                            <span class="stepper-label">Transporting</span>
+                        </div>
+                        <div class="stepper-step" id="step-hospital">
+                            <div class="stepper-circle">6</div>
+                            <span class="stepper-label">Hospital</span>
+                        </div>
+                    </div>
+
+                    <!-- Assigned Ambulance Details -->
+                    <div class="grid grid-cols-3 gap-4 mt-6 p-4 bg-surface-subtle rounded-xl border border-border" id="assigned-ambulance-info">
+                        <div>
+                            <span class="text-xs text-muted block">Vehicle Number</span>
+                            <strong class="text-base text-primary font-mono" id="amb-vehicle-no">Finding...</strong>
+                            <div class="text-xs text-muted" id="amb-type">Basic / Advanced Life Support</div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-muted block">Driver / Paramedic</span>
+                            <strong class="text-base" id="amb-driver-name">Assigning paramedic...</strong>
+                            <div class="text-xs text-muted" id="amb-driver-phone"></div>
+                        </div>
+                        <div>
+                            <span class="text-xs text-muted block">Pickup Address</span>
+                            <span class="text-sm font-medium line-clamp-2" id="amb-pickup-address">Current Location</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Standby Notice (Visible when NO active emergency) -->
+            <div id="standby-notice-card" class="card mt-6 p-4" style="background: #F8FAFC; border: 1px solid var(--border);">
+                <div class="flex items-center gap-3">
+                    <span style="font-size: 1.5rem;">🛡️</span>
+                    <div>
+                        <strong style="color: var(--navy); font-size: 14px;">No active emergency</strong>
+                        <p style="font-size: 12.5px; color: var(--text-secondary); margin: 2px 0 0 0;">
+                            Request an ambulance only when emergency assistance is required. Our dispatch team is on standby 24/7.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOS Hero Trigger -->
+            <div class="sos-hero-card mt-6" id="sos-hero-section">
+                <div class="flex items-center justify-between flex-wrap gap-8">
+                    <div class="max-w-xl">
+                        <span class="badge bg-red-800 text-white text-xs mb-2">24/7 RAPID EMERGENCY DISPATCH</span>
+                        <h2 class="text-3xl font-black text-white leading-tight">Need Immediate Ambulance Assistance?</h2>
+                        <p class="text-sm text-red-100 mt-2 opacity-95">
+                            Tap the Emergency SOS button or submit your location below. Our automated dispatch system allocates the nearest available GPS-tracked ambulance unit instantly.
+                        </p>
+                        <div class="mt-4 flex gap-3 text-xs text-red-100 flex-wrap">
+                            <span>✓ GPS Geolocation matching</span>
+                            <span>✓ Emergency profile transmission</span>
+                            <span>✓ Priority triage</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <button class="sos-btn-giant" onclick="triggerSosNow()" title="Dispatch Ambulance Now">
+                            <span>SOS</span>
+                            <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.05em;">DISPATCH</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Request Form -->
+            <div class="card mt-8" id="request-form-card">
+                <div class="card-header">
+                    <h3 class="card-title">Emergency Details & Location Confirmation</h3>
+                    <p class="text-xs text-muted">Provide accurate landmarks to help the paramedic unit reach you faster.</p>
+                </div>
+
+                <form id="emergency-form" class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="emg-type">Emergency Type *</label>
+                            <select id="emg-type" class="form-control font-medium" required>
+                                <option value="CARDIAC">🫀 Cardiac / Heart Attack / Chest Pain</option>
+                                <option value="ACCIDENT">🚗 Accident / Trauma / Severe Injury</option>
+                                <option value="BREATHING">🫁 Breathing Difficulty / Asthma</option>
+                                <option value="STROKE">🧠 Stroke / Neurological Emergency</option>
+                                <option value="MATERNITY">🤰 Maternity / Childbirth Emergency</option>
+                                <option value="GENERAL" selected>🚨 General Medical Emergency</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="emg-severity">Severity Level *</label>
+                            <select id="emg-severity" class="form-control font-medium" required>
+                                <option value="CRITICAL" selected>Critical (Life-threatening)</option>
+                                <option value="HIGH">High (Urgent care needed)</option>
+                                <option value="MODERATE">Moderate (Stable patient transport)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="emg-address">Pickup Address *</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="emg-address" class="form-control" placeholder="Detecting your current location..." required />
+                                <button type="button" class="btn btn-secondary" onclick="detectGpsLocation()" title="Detect GPS location">
+                                    <span>📍 GPS</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="emg-landmark">Nearby Landmark</label>
+                            <input type="text" id="emg-landmark" class="form-control" placeholder="e.g. Near Metro Station / Main Gate" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="emg-phone">Contact Phone Number *</label>
+                            <input type="tel" id="emg-phone" class="form-control" placeholder="e.g. +91 98765 43210" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="emg-notes">Patient Symptoms & Special Instructions</label>
+                            <input type="text" id="emg-notes" class="form-control" placeholder="e.g. Patient is conscious, 4th floor elevator available" />
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="emg-lat" value="13.0827" />
+                    <input type="hidden" id="emg-lng" value="80.2707" />
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <span>🚨 Confirm & Dispatch Ambulance</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Emergency Requests History -->
+            <div class="card mt-8">
+                <div class="card-header flex justify-between items-center">
+                    <div>
+                        <h3 class="card-title">Emergency Requests History</h3>
+                        <p class="text-xs text-muted">Past emergency ambulance requests and hospital transport audit logs.</p>
+                    </div>
+                    <button class="btn btn-sm btn-secondary" onclick="loadEmergencyHistory()">
+                        <span>↻ Refresh</span>
+                    </button>
+                </div>
+
+                <div id="emergency-history-container" class="table-responsive">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading past emergency records...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let pollTimer = null;
+        let activeEmergencyId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('emergency-center');
+            checkActiveEmergency();
+            detectGpsLocation();
+            loadEmergencyHistory();
+            
+            // Prefill user phone
+            const user = window.api.getCurrentUser();
+            if (user && user.phone) {
+                document.getElementById('emg-phone').value = user.phone;
+            }
+        });
+
+        function detectGpsLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    document.getElementById('emg-lat').value = pos.coords.latitude;
+                    document.getElementById('emg-lng').value = pos.coords.longitude;
+                    if (!document.getElementById('emg-address').value) {
+                        document.getElementById('emg-address').value = `GPS: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (Current Location)`;
+                    }
+                }, (err) => {
+                    console.log('GPS fallback used', err);
+                    if (!document.getElementById('emg-address').value) {
+                        document.getElementById('emg-address').value = 'Indiranagar / Central Healthcare Zone';
+                    }
+                });
+            }
+        }
+
+        async function checkActiveEmergency() {
+            try {
+                const res = await window.api.getActiveEmergencyRequest();
+                const active = res.data;
+                const standbyCard = document.getElementById('standby-notice-card');
+                if (active && active.id) {
+                    activeEmergencyId = active.id;
+                    if (standbyCard) standbyCard.style.display = 'none';
+                    renderActiveEmergency(active);
+                    startPolling();
+                } else {
+                    activeEmergencyId = null;
+                    document.getElementById('active-emergency-card').style.display = 'none';
+                    document.getElementById('sos-hero-section').style.display = 'block';
+                    if (standbyCard) standbyCard.style.display = 'block';
+                    stopPolling();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderActiveEmergency(req) {
+            document.getElementById('active-emergency-card').style.display = 'block';
+            document.getElementById('active-req-time').textContent = 'Dispatched at ' + (req.requestedAt || 'Just now');
+            document.getElementById('active-status-text').textContent = (req.status || 'REQUESTED').replace(/_/g, ' ');
+            document.getElementById('active-eta-text').textContent = `~${req.estimatedArrivalMinutes || 5} Mins`;
+
+            document.getElementById('amb-vehicle-no').textContent = req.ambulanceVehicleNumber || 'Allocating Vehicle...';
+            document.getElementById('amb-type').textContent = req.ambulanceVehicleType ? req.ambulanceVehicleType.replace(/_/g, ' ') : 'Emergency Ambulance';
+            document.getElementById('amb-driver-name').textContent = req.driverName ? `Paramedic: ${req.driverName}` : 'Driver on standby';
+            document.getElementById('amb-driver-phone').textContent = req.driverPhone ? `Phone: ${req.driverPhone}` : '';
+            document.getElementById('amb-pickup-address').textContent = req.pickupAddress || 'Your location';
+
+            // Stepper progress
+            updateStepper(req.status);
+        }
+
+        function updateStepper(status) {
+            const steps = ['requested', 'assigned', 'enroute', 'arrived', 'transport', 'hospital'];
+            const s = (status || '').toUpperCase();
+
+            let activeIdx = 0;
+            if (s === 'REQUESTED') activeIdx = 0;
+            else if (s === 'ASSIGNED' || s === 'ACCEPTED') activeIdx = 1;
+            else if (s === 'EN_ROUTE') activeIdx = 2;
+            else if (s === 'ARRIVED') activeIdx = 3;
+            else if (s === 'PATIENT_PICKED_UP' || s === 'TRANSPORTING') activeIdx = 4;
+            else if (s === 'ARRIVED_AT_HOSPITAL' || s === 'COMPLETED') activeIdx = 5;
+
+            steps.forEach((stepName, i) => {
+                const el = document.getElementById(`step-${stepName}`);
+                if (!el) return;
+                el.classList.remove('active', 'completed');
+                if (i < activeIdx) {
+                    el.classList.add('completed');
+                } else if (i === activeIdx) {
+                    el.classList.add('active');
+                }
+            });
+        }
+
+        function startPolling() {
+            if (!pollTimer) {
+                pollTimer = setInterval(checkActiveEmergency, 4000);
+            }
+        }
+
+        function stopPolling() {
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+        }
+
+        async function triggerSosNow() {
+            const phone = document.getElementById('emg-phone').value || '+91 98765 43210';
+            const address = document.getElementById('emg-address').value || 'Current GPS Location';
+            const lat = parseFloat(document.getElementById('emg-lat').value) || 13.0827;
+            const lng = parseFloat(document.getElementById('emg-lng').value) || 80.2707;
+
+            try {
+                window.toast.info('Dispatching nearest emergency ambulance...');
+                const res = await window.api.createEmergencyRequest({
+                    emergencyType: 'GENERAL',
+                    severity: 'CRITICAL',
+                    pickupLatitude: lat,
+                    pickupLongitude: lng,
+                    pickupAddress: address,
+                    contactPhone: phone,
+                    patientNotes: 'One-touch SOS trigger'
+                });
+
+                window.toast.success('Ambulance dispatched successfully!');
+                checkActiveEmergency();
+                loadEmergencyHistory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to dispatch SOS');
+            }
+        }
+
+        document.getElementById('emergency-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emergencyType = document.getElementById('emg-type').value;
+            const severity = document.getElementById('emg-severity').value;
+            const pickupAddress = document.getElementById('emg-address').value.trim();
+            const landmark = document.getElementById('emg-landmark').value.trim();
+            const contactPhone = document.getElementById('emg-phone').value.trim();
+            const patientNotes = document.getElementById('emg-notes').value.trim();
+            const pickupLatitude = parseFloat(document.getElementById('emg-lat').value) || 13.0827;
+            const pickupLongitude = parseFloat(document.getElementById('emg-lng').value) || 80.2707;
+
+            try {
+                window.toast.info('Processing emergency dispatch...');
+                const res = await window.api.createEmergencyRequest({
+                    emergencyType, severity, pickupLatitude, pickupLongitude, pickupAddress, landmark, contactPhone, patientNotes
+                });
+                window.toast.success('Emergency request confirmed and dispatched!');
+                checkActiveEmergency();
+                loadEmergencyHistory();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to dispatch emergency request');
+            }
+        });
+
+        async function promptCancelEmergency() {
+            if (!activeEmergencyId) return;
+            const reason = prompt('Please specify cancellation reason:');
+            if (reason === null) return;
+
+            try {
+                await window.api.cancelEmergencyRequest(activeEmergencyId, reason || 'Cancelled by user');
+                window.toast.info('Emergency request cancelled');
+                checkActiveEmergency();
+                loadEmergencyHistory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to cancel request');
+            }
+        }
+
+        async function loadEmergencyHistory() {
+            const container = document.getElementById('emergency-history-container');
+            if (!container) return;
+
+            try {
+                const res = await window.api.getPatientEmergencyRequests();
+                const list = res.data || [];
+
+                if (list.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-muted">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚑</div>
+                            <h4 style="color: var(--navy); font-size: 1rem;">No Emergency History</h4>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Your past emergency requests will be logged here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Requested Date</th>
+                                <th>Emergency Type</th>
+                                <th>Severity</th>
+                                <th>Pickup Address</th>
+                                <th>Ambulance Assigned</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${list.map(req => {
+                                let badgeClass = 'badge-gray';
+                                const s = (req.status || '').toUpperCase();
+                                if (s === 'COMPLETED') badgeClass = 'badge-success';
+                                else if (s === 'CANCELLED') badgeClass = 'badge-danger';
+                                else if (s === 'REQUESTED' || s === 'ASSIGNED' || s === 'EN_ROUTE') badgeClass = 'badge-warning';
+
+                                return `
+                                    <tr>
+                                        <td style="font-size: 13px; color: var(--navy); font-weight: 500;">${escapeHtml(req.requestedAt || 'Recent')}</td>
+                                        <td><strong>${escapeHtml(req.emergencyType || 'General')}</strong></td>
+                                        <td><span class="badge ${req.severity === 'CRITICAL' ? 'badge-danger' : 'badge-warning'}">${escapeHtml(req.severity || 'Normal')}</span></td>
+                                        <td style="font-size: 12px; color: var(--text-secondary); max-width: 200px;" class="truncate">${escapeHtml(req.pickupAddress || '-')}</td>
+                                        <td style="font-size: 12px;">${req.ambulanceVehicleNumber ? `<strong>${escapeHtml(req.ambulanceVehicleNumber)}</strong> (${escapeHtml(req.driverName || 'Driver')})` : '<span class="text-muted">Unassigned</span>'}</td>
+                                        <td><span class="badge ${badgeClass}"><span class="badge-dot"></span>${escapeHtml(s.replace(/_/g, ' '))}</span></td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-6 text-danger text-sm">Failed to load emergency history.</div>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

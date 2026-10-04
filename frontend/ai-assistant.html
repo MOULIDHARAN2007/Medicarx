@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Health & Medicine Assistant — MediCareX</title>
+    <meta name="description" content="Ask MediCareX AI about medicines, dosage timing, drug interactions, and local pharmacy stock.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container" style="padding-bottom: 1rem;">
+                <div class="page-header" style="margin-bottom: 1rem;">
+                    <div>
+                        <h1 class="page-title">MediCareX AI Health Assistant</h1>
+                        <p class="page-subtitle">Instant guidance on medicine dosage, active ingredients, generic substitutes, and pharmacy stock</p>
+                    </div>
+                </div>
+
+                <!-- AI Chat Container -->
+                <div class="ai-chat-container">
+                    <!-- Prominent Safety Disclaimer -->
+                    <div class="ai-disclaimer-bar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span><strong>Not a Doctor:</strong> MediCareX AI provides general medicine information and navigation assistance, not clinical diagnosis. For medical emergencies, consult a licensed physician.</span>
+                    </div>
+
+                    <!-- Chat Messages Log -->
+                    <div class="ai-chat-messages" id="chat-messages-box">
+                        <!-- Default Intro Message -->
+                        <div class="chat-bubble ai">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <div style="width: 24px; height: 24px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">AI</div>
+                                <strong style="color: var(--navy); font-size: 13px;">MediCareX Assistant</strong>
+                            </div>
+                            <p style="color: var(--navy); font-size: 14px; line-height: 1.6;">
+                                Hello! I can help you verify medicine availability across Bangalore pharmacies, explain active ingredients, review dosage guidelines, or find therapeutic alternatives.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Suggested Starter Chips -->
+                    <div class="ai-prompt-chips">
+                        <button class="filter-chip" onclick="askQuestion('Find a nearby pharmacy with Amoxicillin in stock')">📍 Find a nearby pharmacy</button>
+                        <button class="filter-chip" onclick="askQuestion('Explain Paracetamol 650mg dosage and precautions')">💊 Paracetamol dosage & safety</button>
+                        <button class="filter-chip" onclick="askQuestion('Show available therapeutic alternatives for acid reflux')">🔄 Show available alternatives</button>
+                        <button class="filter-chip" onclick="askQuestion('What active prescriptions do I currently have?')">📋 Check my active prescriptions</button>
+                    </div>
+
+                    <!-- Input Bar -->
+                    <form class="ai-input-bar" id="ai-chat-form">
+                        <input type="text" id="ai-user-input" class="form-input" placeholder="Type your health or medicine question here..." style="border-radius: var(--radius-full); padding: 0.75rem 1.25rem;" required />
+                        <button type="submit" id="ai-send-btn" class="btn btn-primary" style="border-radius: var(--radius-full); padding: 0.75rem 1.5rem;">
+                            <span>Send</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('ai');
+        });
+
+        function askQuestion(text) {
+            document.getElementById('ai-user-input').value = text;
+            document.getElementById('ai-chat-form').requestSubmit();
+        }
+
+        document.getElementById('ai-chat-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-user-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const box = document.getElementById('chat-messages-box');
+
+            // Append User Bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble user';
+            userBubble.innerText = message;
+            box.appendChild(userBubble);
+            input.value = '';
+            box.scrollTop = box.scrollHeight;
+
+            // Append Loading Bubble
+            const loadingBubble = document.createElement('div');
+            loadingBubble.className = 'chat-bubble ai';
+            loadingBubble.id = 'ai-loading-bubble';
+            loadingBubble.innerHTML = `<em>Thinking and retrieving medical data...</em>`;
+            box.appendChild(loadingBubble);
+            box.scrollTop = box.scrollHeight;
+
+            try {
+                const res = await window.api.askAi(message);
+                loadingBubble.remove();
+
+                const aiBubble = document.createElement('div');
+                aiBubble.className = 'chat-bubble ai';
+
+                let replyFormatted = res.data?.reply
+                    ? res.data.reply.replace(/### (.*?)\n/g, '<h4 style="color: var(--navy); margin-top: 6px; margin-bottom: 4px;">$1</h4>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                    .replace(/\n\n/g, '<br><br>')
+                                    .replace(/\n/g, '<br>')
+                    : 'Information retrieved.';
+
+                aiBubble.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">AI</div>
+                        <strong style="color: var(--navy); font-size: 13px;">MediCareX Assistant</strong>
+                    </div>
+                    <div style="color: var(--navy); font-size: 14px; line-height: 1.6;">
+                        ${replyFormatted}
+                    </div>
+                `;
+
+                // If action links exist
+                if (res.data?.actionType === 'OPEN_MAP') {
+                    aiBubble.innerHTML += `<div style="margin-top: 1rem;"><button class="btn btn-sm btn-primary" onclick="window.location.href='/map.html'">Open Live Map</button></div>`;
+                } else if (res.data?.actionType === 'VIEW_PRESCRIPTION') {
+                    aiBubble.innerHTML += `<div style="margin-top: 1rem;"><button class="btn btn-sm btn-primary" onclick="window.location.href='/prescription.html'">View Digital Prescription</button></div>`;
+                }
+
+                box.appendChild(aiBubble);
+                box.scrollTop = box.scrollHeight;
+
+            } catch (err) {
+                loadingBubble.innerHTML = `<span style="color: var(--danger);">Error generating response: ${err.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>

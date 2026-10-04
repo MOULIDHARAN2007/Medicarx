@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — MediCareX Healthcare SaaS</title>
+    <meta name="description" content="Sign in to your MediCareX account to find medicines, view real-time pharmacy availability, and access prescriptions.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/pages/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <!-- LEFT PANEL: Login Form -->
+        <div class="auth-left-panel">
+            <div class="auth-brand">
+                <div class="brand-logo-icon">✚</div>
+                <div class="brand-name">MediCare<span>X</span></div>
+            </div>
+
+            <h1 class="auth-heading">Welcome Back</h1>
+            <p class="auth-subtext">Access real-time medicine availability, digital prescriptions, and local pharmacy inventories across your community.</p>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Email Address</label>
+                    <input type="email" id="login-email" class="form-input" placeholder="Enter your email" autocomplete="username" required />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="login-password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="login-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" required />
+                        <button type="button" class="password-toggle" id="toggle-password" title="Toggle password visibility">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                    <div style="text-align: right; margin-top: 0.375rem;">
+                        <a href="/forgot-password.html" style="font-size: 12px;">Forgot password?</a>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between" style="margin-bottom: 1.5rem;">
+                    <label class="flex items-center gap-2" style="font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+                        <input type="checkbox" id="remember-me" style="accent-color: var(--primary-blue);" />
+                        Remember me on this device
+                    </label>
+                </div>
+
+                <button type="submit" id="btn-login" class="btn btn-primary btn-lg w-full">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+
+            <button type="button" class="social-auth-btn" id="btn-google-login">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                Continue with Google
+            </button>
+
+            <p class="text-center" style="margin-top: 1.5rem; font-size: 13px;">
+                Don't have an account? <a href="/register.html" class="font-semibold">Create Account</a>
+            </p>
+        </div>
+
+        <!-- RIGHT PANEL: Promotional Healthcare Banner -->
+        <div class="auth-right-panel">
+            <div class="promo-badge">
+                <span>✦</span> Healthcare SaaS 2.0
+            </div>
+            <h2 class="promo-title">Better Medicine Access<br>For a Healthier Tomorrow</h2>
+            
+            <div class="benefits-list">
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Live stock verification across 500+ licensed local pharmacies</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Direct digital prescription generation and automated renewals</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Interactive geolocation mapping and accurate route navigation</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">AI Health Assistant for dosage guidance and side effect alerts</div>
+                </div>
+            </div>
+
+            <div class="hero-stats-banner">
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">99.8%</div>
+                    <div class="hero-stat-lbl">Stock Accuracy</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">&lt; 15 min</div>
+                    <div class="hero-stat-lbl">Local Pickup</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">50k+</div>
+                    <div class="hero-stat-lbl">Active Patients</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        // Toggle password visibility
+        document.getElementById('toggle-password').addEventListener('click', function() {
+            const input = document.getElementById('login-password');
+            if (input.type === 'password') {
+                input.type = 'text';
+            } else {
+                input.type = 'password';
+            }
+        });
+
+        // Form Submit
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-login');
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Signing In...';
+
+            try {
+                const res = await window.api.login(email, password);
+                window.toast.success('Welcome back, ' + (res.data?.user?.fullName || 'User') + '!');
+                
+                const role = (res.data?.user?.role || 'PATIENT').toUpperCase();
+                setTimeout(() => {
+                    if (role === 'DOCTOR') {
+                        window.location.href = '/doctor-dashboard.html';
+                    } else if (role === 'PHARMACY') {
+                        window.location.href = '/pharmacy-dashboard.html';
+                    } else if (role === 'ADMIN') {
+                        window.location.href = '/admin-dashboard.html';
+                    } else if (role === 'AMBULANCE') {
+                        window.location.href = '/ambulance-dashboard.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                }, 600);
+            } catch (err) {
+                window.toast.error(err.message || 'Invalid email or password');
+                btn.disabled = false;
+                btn.innerText = 'Sign In';
+            }
+        });
+
+        // Check for Google OAuth error parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            const errParam = urlParams.get('error');
+            if (errParam === 'authorization_cancelled' || errParam === 'access_denied' || errParam === 'cancelled') {
+                window.toast.warning('Google Sign-In was cancelled.');
+            } else if (errParam === 'oauth_not_configured') {
+                window.toast.error('Google Sign-In is currently unavailable. Please use email and password.');
+            } else if (errParam === 'account_deactivated') {
+                window.toast.error('Your account has been deactivated. Please contact support.');
+            } else {
+                window.toast.error('Google Sign-In failed (' + errParam.replace(/_/g, ' ') + '). Please try again.');
+            }
+            // Clean URL query parameters without page reload
+            try {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {}
+        }
+
+        // Google Single Sign-On Flow
+        const googleBtn = document.getElementById('btn-google-login');
+        const originalGoogleBtnHtml = googleBtn.innerHTML;
+
+        googleBtn.addEventListener('click', async function() {
+            if (googleBtn.disabled) return;
+            googleBtn.disabled = true;
+            googleBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" class="animate-spin" style="animation: spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/>
+                    <path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                <span>Connecting to Google...</span>
+            `;
+
+            try {
+                const res = await window.api.get('/api/auth/google/url');
+                if (res.data?.configured && res.data?.url) {
+                    window.toast.info('Redirecting to Google Sign-In...');
+                    window.location.href = res.data.url;
+                } else {
+                    const cfg = await window.api.get('/api/auth/google/config');
+                    if (cfg.data?.configured && cfg.data?.clientId) {
+                        window.toast.info('Redirecting to Google Sign-In...');
+                        const redirectUri = encodeURIComponent(cfg.data.redirectUri || (window.location.origin + '/api/auth/google/callback'));
+                        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(cfg.data.clientId)}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=select_account`;
+                    } else {
+                        window.toast.error('Google Sign-In is not configured yet. Please configure GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET in your .env or .env.local file.');
+                        googleBtn.disabled = false;
+                        googleBtn.innerHTML = originalGoogleBtnHtml;
+                    }
+                }
+            } catch (err) {
+                window.toast.error('Unable to initiate Google Sign-In. Please check your connection or use email and password.');
+                googleBtn.disabled = false;
+                googleBtn.innerHTML = originalGoogleBtnHtml;
+            }
+        });
+    </script>
+</body>
+</html>

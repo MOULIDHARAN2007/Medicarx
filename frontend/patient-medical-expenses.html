@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Expense Tracker — MediCareX</title>
+    <meta name="description" content="Track your complete annual healthcare expenses, pharmacy medicine bills, and doctor consultation fees for budget tracking and insurance tax claims.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Medical Expense Tracker</h1>
+                    <p class="text-muted">Consolidated healthcare ledger across doctor consultations, pharmacy medicines, and diagnostics.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-secondary" onclick="exportCsv()">
+                        <span>📥 Export CSV / Tax Report</span>
+                    </button>
+                    <a href="/patient-purchase-history.html" class="btn btn-primary">
+                        <span>View Detailed Invoices</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Spending Metric Cards -->
+            <div class="grid grid-cols-4 gap-4 mt-6">
+                <div class="card p-4">
+                    <div class="text-xs text-muted font-bold uppercase tracking-wider">Total Healthcare Spend</div>
+                    <div class="text-2xl font-bold text-primary mt-1" id="stat-total-spent">₹0.00</div>
+                    <div class="text-xs text-muted mt-1">All categories combined</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted font-bold uppercase tracking-wider">Pharmacy Medicines</div>
+                    <div class="text-2xl font-bold text-emerald-600 mt-1" id="stat-pharmacy-spent">₹0.00</div>
+                    <div class="text-xs text-muted mt-1">POS bills & prescription fills</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted font-bold uppercase tracking-wider">Doctor Consultations</div>
+                    <div class="text-2xl font-bold text-blue-600 mt-1" id="stat-consultation-spent">₹0.00</div>
+                    <div class="text-xs text-muted mt-1">Specialist & GP appointments</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted font-bold uppercase tracking-wider">Diagnostics & Tests</div>
+                    <div class="text-2xl font-bold text-purple-600 mt-1" id="stat-diagnostics-spent">₹0.00</div>
+                    <div class="text-xs text-muted mt-1">Lab reports & bloodwork</div>
+                </div>
+            </div>
+
+            <!-- Expense Ledger Table -->
+            <div class="card mt-6">
+                <div class="card-header flex justify-between items-center">
+                    <div>
+                        <h3 class="card-title">Healthcare Expense Ledger</h3>
+                        <p class="text-xs text-muted">Automatically aggregated from your confirmed appointments and pharmacy purchases.</p>
+                    </div>
+                </div>
+
+                <div id="expenses-container" class="table-responsive">
+                    <div class="text-center py-12 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading medical expenses ledger...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let expenseRecords = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('patient-medical-expenses');
+            loadExpenses();
+        });
+
+        async function loadExpenses() {
+            const container = document.getElementById('expenses-container');
+            try {
+                const res = await window.api.getPatientMedicalExpenses();
+                const data = res.data || {};
+                
+                document.getElementById('stat-total-spent').textContent = `₹${(data.totalSpent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                document.getElementById('stat-pharmacy-spent').textContent = `₹${(data.pharmacyTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                document.getElementById('stat-consultation-spent').textContent = `₹${(data.consultationTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                document.getElementById('stat-diagnostics-spent').textContent = `₹${(data.diagnosticsTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+                expenseRecords = data.expensesList || [];
+                renderExpenses(expenseRecords);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-danger">
+                        <p>Failed to load medical expenses.</p>
+                        <button class="btn btn-sm btn-secondary mt-2" onclick="loadExpenses()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderExpenses(list) {
+            const container = document.getElementById('expenses-container');
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-muted">
+                        <div class="text-4xl mb-2">💳</div>
+                        <h4>No Medical Expenses Recorded</h4>
+                        <p class="text-xs text-muted mt-1">When you book doctor appointments or purchase medicines, your expense ledger will populate automatically.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Payment Method</th>
+                            <th>Date</th>
+                            <th class="text-right">Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(e => `
+                            <tr>
+                                <td>
+                                    <span class="badge ${e.category.includes('Pharmacy') ? 'badge-success' : 'badge-primary'}">
+                                        ${escapeHtml(e.category)}
+                                    </span>
+                                </td>
+                                <td class="font-medium">${escapeHtml(e.description)}</td>
+                                <td class="text-xs text-muted">${escapeHtml(e.paymentMethod || 'Direct')}</td>
+                                <td class="text-sm text-muted">${escapeHtml(e.date || '')}</td>
+                                <td class="text-right font-bold text-primary-dark">₹${(e.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function exportCsv() {
+            if (expenseRecords.length === 0) {
+                window.toast.info('No expense records available to export');
+                return;
+            }
+
+            let csv = "ID,Category,Description,Payment Method,Date,Amount (INR)\n";
+            expenseRecords.forEach(e => {
+                csv += `"${e.id}","${e.category}","${e.description}","${e.paymentMethod}","${e.date}","${e.amount}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', `medicarex_medical_expenses_${new Date().toISOString().substring(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.toast.success('Medical expenses CSV downloaded');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

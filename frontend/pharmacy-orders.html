@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Orders — MediCareX Pharmacy</title>
+    <meta name="description" content="Manage incoming medicine orders, prescription fulfillment, and dispensing statuses.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Pharmacy Orders & Fulfillment</h1>
+                        <p class="page-subtitle">Track incoming customer medicine orders, verify prescriptions, and manage pickup readiness</p>
+                    </div>
+                </div>
+
+                <!-- Tabs Header -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 2rem;">
+                    <div class="tabs-header" style="margin-bottom: 0;">
+                        <button class="tab-btn active" onclick="filterOrders(this, 'All')">All Orders</button>
+                        <button class="tab-btn" onclick="filterOrders(this, 'Pending')">Pending</button>
+                        <button class="tab-btn" onclick="filterOrders(this, 'Confirmed')">Confirmed</button>
+                        <button class="tab-btn" onclick="filterOrders(this, 'Ready')">Ready for Pickup</button>
+                        <button class="tab-btn" onclick="filterOrders(this, 'Completed')">Completed</button>
+                        <button class="tab-btn" onclick="filterOrders(this, 'Cancelled')">Cancelled</button>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Customer Details</th>
+                                    <th>Prescribed Items</th>
+                                    <th>Total Amount</th>
+                                    <th>Payment</th>
+                                    <th>Fulfillment Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-tbody">
+                                <tr>
+                                    <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading customer orders...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- View Order Details Modal -->
+    <div class="modal-overlay" id="order-detail-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);" id="modal-order-title">Order Details</h3>
+                <button class="btn-icon" onclick="closeOrderDetailModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-order-items-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeOrderDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let ordersList = [];
+        let currentOrderFilter = 'All';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('pharmacy-orders');
+            loadOrders();
+        });
+
+        function filterOrders(btn, status) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentOrderFilter = status;
+            renderOrders();
+        }
+
+        async function loadOrders() {
+            try {
+                const res = await window.api.getOrders();
+                ordersList = res.data || [];
+                renderOrders();
+            } catch (err) {
+                document.getElementById('orders-tbody').innerHTML = `<tr><td colspan="7" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderOrders() {
+            const tbody = document.getElementById('orders-tbody');
+            let list = ordersList;
+
+            if (currentOrderFilter !== 'All') {
+                list = list.filter(o => o.status.toLowerCase() === currentOrderFilter.toLowerCase());
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-muted);">No orders found under '${currentOrderFilter}'.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(o => {
+                const itemsCount = (o.items || []).length;
+                const itemsSummary = (o.items || []).map(i => `${i.medicineName} (${i.quantity})`).join(', ');
+
+                const badgeClass = o.status === 'Completed' ? 'badge-success'
+                                : (o.status === 'Ready' ? 'badge-blue'
+                                : (o.status === 'Confirmed' ? 'badge-purple'
+                                : (o.status === 'Pending' ? 'badge-warning' : 'badge-danger')));
+
+                return `
+                    <tr>
+                        <td>
+                            <strong style="color: var(--primary-blue); font-size: 14px;">${o.orderNumber}</strong>
+                            <div style="font-size: 11px; color: var(--text-muted);">${o.orderDate}</div>
+                        </td>
+                        <td>
+                            <strong style="color: var(--navy); font-size: 14px;">${o.customerName}</strong>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${o.customerPhone || '-'}</div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px; color: var(--navy); font-weight: 500; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                ${itemsSummary || 'Prescription Medicines'}
+                            </div>
+                            <button style="font-size: 11px; color: var(--primary-blue); background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline;" onclick="viewOrderDetails(${o.id})">
+                                View all ${itemsCount} items
+                            </button>
+                        </td>
+                        <td style="font-weight: 800; color: var(--navy); font-size: 15px;">₹${o.totalAmount.toFixed(2)}</td>
+                        <td><span class="badge badge-gray">${o.paymentMethod || 'UPI'}</span></td>
+                        <td>
+                            <select class="form-select" style="padding: 0.3rem 0.5rem; font-size: 12px; font-weight: 600; width: auto;" onchange="changeStatus(${o.id}, this.value)">
+                                <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                <option value="Confirmed" ${o.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                                <option value="Ready" ${o.status === 'Ready' ? 'selected' : ''}>Ready for Pickup</option>
+                                <option value="Completed" ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                                <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline" onclick="viewOrderDetails(${o.id})">Invoice</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function changeStatus(orderId, newStatus) {
+            try {
+                await window.api.updateOrderStatus(orderId, newStatus);
+                window.toast.success(`Order status updated to ${newStatus}`);
+                loadOrders();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+
+        function viewOrderDetails(orderId) {
+            const o = ordersList.find(item => item.id === orderId);
+            if (!o) return;
+
+            document.getElementById('modal-order-title').innerText = `Order ${o.orderNumber} — ${o.customerName}`;
+            const container = document.getElementById('modal-order-items-list');
+
+            container.innerHTML = `
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #f8fafc; border-radius: var(--radius-md);">
+                    <div style="font-size: 12px; color: var(--text-secondary);">Date: <strong>${o.orderDate}</strong> • Payment: <strong>${o.paymentMethod}</strong></div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Customer: <strong>${o.customerName}</strong> (${o.customerPhone || ''})</div>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Medicine Item</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(o.items || []).map(i => `
+                            <tr>
+                                <td style="font-weight: 600; color: var(--navy);">${i.medicineName}</td>
+                                <td>${i.quantity}</td>
+                                <td>₹${i.unitPrice.toFixed(2)}</td>
+                                <td style="font-weight: 700; color: var(--navy);">₹${(i.quantity * i.unitPrice).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="flex justify-between items-center" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid var(--border);">
+                    <span style="font-size: 1.1rem; font-weight: 700; color: var(--navy);">Grand Total:</span>
+                    <span style="font-size: 1.35rem; font-weight: 800; color: var(--primary-blue);">₹${o.totalAmount.toFixed(2)}</span>
+                </div>
+            `;
+
+            document.getElementById('order-detail-modal').classList.add('open');
+        }
+
+        function closeOrderDetailModal() {
+            document.getElementById('order-detail-modal').classList.remove('open');
+        }
+    </script>
+</body>
+</html>

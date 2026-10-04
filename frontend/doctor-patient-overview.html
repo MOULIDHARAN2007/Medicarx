@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Clinical Overview — MediCareX Doctor</title>
+    <meta name="description" content="Concise patient clinical profile, recorded allergies, active medications, and quick access to doctor decision tools.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Patient Context Banner -->
+                <div id="patient-context-banner"></div>
+
+                <!-- Action Tools Bar -->
+                <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.5rem; background: #F8FAFC; border-color: #CBD5E1;">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--navy);">Clinical Tools & Actions:</span>
+                            <span style="font-size: 12px; color: var(--text-secondary); margin-left: 0.5rem;">Access dedicated diagnostic, safety, and tracking modules for this patient</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline" id="btn-nav-ai" onclick="navigateToTool('ai-support')">✨ AI Clinical Support</button>
+                            <button class="btn btn-sm btn-outline" id="btn-nav-safety" onclick="navigateToTool('prescription-safety')">🛡️ Prescription Safety</button>
+                            <button class="btn btn-sm btn-outline" id="btn-nav-timeline" onclick="navigateToTool('timeline')">📅 Health Timeline</button>
+                            <button class="btn btn-sm btn-outline" id="btn-nav-treatment" onclick="navigateToTool('treatment-progress')">📈 Treatment Progress</button>
+                            <button class="btn btn-sm btn-primary" onclick="openCreateRxModal()">+ Issue Prescription</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Clinical Overview Grid -->
+                <div class="grid grid-2 gap-4">
+                    <!-- Left: Active Regimen & Current Prescriptions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">💊 Current Active Medications</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Prescribed treatments currently active</p>
+                            </div>
+                            <span id="active-med-badge" class="badge badge-blue">0 Active</span>
+                        </div>
+                        <div id="overview-meds-list" style="padding: 0.5rem 0;">
+                            <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading active medications...</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Recorded Allergies & Clinical Alerts -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">⚠️ Allergies & Clinical Alerts</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Verified hypersensitivities and contraindications</p>
+                            </div>
+                            <span class="badge badge-warning">Safety Watch</span>
+                        </div>
+                        <div id="overview-allergies-list" style="padding: 0.5rem 0;">
+                            <div class="p-3 mb-2" style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px;">
+                                <strong style="font-size: 13px; color: #92400E;">Beta-Lactam / Penicillin Sensitivity Watch</strong>
+                                <p style="font-size: 12px; color: #78350F; margin: 0.25rem 0 0 0;">Flagged for clinical verification before prescribing beta-lactam antibiotics.</p>
+                            </div>
+                            <div class="p-3" style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;">
+                                <strong style="font-size: 13px; color: #065F46;">Standard Clearance Profile</strong>
+                                <p style="font-size: 12px; color: #047857; margin: 0.25rem 0 0 0;">No chronic renal or hepatic impairment recorded in electronic health records.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Consultations & Recent Activity + Treatment Goals -->
+                <div class="grid grid-2 gap-4 mt-4">
+                    <!-- Left: Recent Consultations -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.05rem; color: var(--navy);">🩺 Recent Consultations</h3>
+                                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Past OPD visits and diagnoses</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline" onclick="window.location.href='/doctor-appointments.html'">View All</button>
+                        </div>
+                        <div id="overview-consultations-list">
+                            <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading consultations...</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Treatment Goals & Activity Summary -->
+                    <div class="flex flex-col gap-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 style="font-size: 1.05rem; color: var(--navy);">📈 Active Treatment Goals</h3>
+                                    <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Clinical targets and progress</p>
+                                </div>
+                                <button class="btn btn-sm btn-outline" onclick="navigateToTool('treatment-progress')">View Tracker →</button>
+                            </div>
+                            <div id="overview-goals-summary">
+                                <p style="text-align: center; padding: 1.5rem; color: var(--text-muted);">Loading treatment goals...</p>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3 style="font-size: 1.05rem; color: var(--navy);">📅 Recent Timeline Activity</h3>
+                                    <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Recent clinical event highlights</p>
+                                </div>
+                                <button class="btn btn-sm btn-outline" onclick="navigateToTool('timeline')">Full Timeline →</button>
+                            </div>
+                            <div id="overview-recent-timeline">
+                                <p style="text-align: center; padding: 1.5rem; color: var(--text-muted);">Loading recent activity...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Prescription Modal -->
+    <div class="modal-overlay" id="create-rx-modal">
+        <div class="modal-container" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Issue Digital Prescription</h3>
+                <button class="btn-icon" onclick="closeCreateRxModal()">✕</button>
+            </div>
+            <form id="create-rx-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="rx-diag-input">Diagnosis</label>
+                        <input type="text" id="rx-diag-input" class="form-input" placeholder="e.g. Acute Pharyngitis, Viral Fever, Hypertension" required />
+                    </div>
+
+                    <div class="form-group">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.5rem;">
+                            <label class="form-label" style="margin-bottom: 0;">Medications to Prescribe</label>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="addMedicationRow()" style="font-size: 11px; padding: 0.2rem 0.5rem;">+ Add Medicine</button>
+                        </div>
+                        <div id="rx-meds-builder" class="flex flex-col gap-2"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rx-notes-input">Physician Advisory & Instructions</label>
+                        <textarea id="rx-notes-input" class="form-textarea" rows="2" placeholder="e.g. Take medications after meals, maintain hydration, rest for 3 days."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateRxModal()">Cancel</button>
+                    <button type="submit" id="btn-issue-rx" class="btn btn-primary">Sign & Issue Prescription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/doctor-context.js"></script>
+    <script>
+        let currentPatientId = 1;
+        let currentPatientData = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-patients');
+            currentPatientId = window.DoctorContext.getSelectedPatientId();
+            loadPatientOverview(currentPatientId);
+        });
+
+        async function loadPatientOverview(patientId) {
+            currentPatientId = patientId;
+            try {
+                const res = await window.api.getDoctorPatientOverview(patientId);
+                const data = res.data || {};
+                currentPatientData = data.patient || {};
+
+                // Render Shared Patient Header
+                window.DoctorContext.renderPatientHeader('patient-context-banner', currentPatientData, 'overview');
+                window.DoctorContext.loadPatientsRoster('doctor-patient-switcher', currentPatientId, (newId) => {
+                    loadPatientOverview(newId);
+                });
+
+                // Render Active Medications
+                renderActiveMeds(currentPatientData.activePrescriptions || []);
+
+                // Render Consultations
+                renderConsultations(currentPatientData.recentAppointments || []);
+
+                // Render Treatment Goals summary
+                renderGoalsSummary(data.treatmentGoals || []);
+
+                // Render Recent Timeline
+                renderRecentTimeline(data.timelinePreview || []);
+
+            } catch (err) {
+                console.error(err);
+                window.toast.error(err.message || 'Failed to load patient overview');
+            }
+        }
+
+        function renderActiveMeds(meds) {
+            const list = document.getElementById('overview-meds-list');
+            const badge = document.getElementById('active-med-badge');
+            badge.innerText = `${meds.length} Active`;
+
+            if (meds.length === 0) {
+                list.innerHTML = `<p style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px;">No active prescriptions recorded for this patient.</p>`;
+                return;
+            }
+
+            list.innerHTML = meds.map(m => `
+                <div class="flex items-center justify-between p-3" style="border-bottom: 1px solid var(--border);">
+                    <div>
+                        <strong style="font-size: 13.5px; color: var(--navy);">${m.medicineName}</strong>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            ${m.dosage || 'Standard'} • ${m.frequency || 'OD'} • ${m.duration || 'Ongoing'}
+                        </div>
+                    </div>
+                    <span class="badge badge-blue" style="font-size: 11px;">Active</span>
+                </div>
+            `).join('');
+        }
+
+        function renderConsultations(appts) {
+            const list = document.getElementById('overview-consultations-list');
+            if (appts.length === 0) {
+                list.innerHTML = `<p style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px;">No past consultations recorded.</p>`;
+                return;
+            }
+
+            list.innerHTML = appts.slice(0, 4).map(a => `
+                <div class="flex items-center justify-between p-3" style="border-bottom: 1px solid var(--border);">
+                    <div>
+                        <div style="font-size: 13px; font-weight: 600; color: var(--navy);">${a.type || 'General Consultation'}</div>
+                        <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
+                            ${a.appointmentDate} ${a.appointmentTime ? 'at ' + a.appointmentTime : ''}
+                        </div>
+                    </div>
+                    <span class="badge ${a.status === 'Completed' ? 'badge-success' : 'badge-primary'}">${a.status}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderGoalsSummary(goals) {
+            const container = document.getElementById('overview-goals-summary');
+            if (goals.length === 0) {
+                container.innerHTML = `<p style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 12.5px;">No active treatment goals set.</p>`;
+                return;
+            }
+
+            container.innerHTML = goals.slice(0, 2).map(g => `
+                <div class="p-3" style="border-bottom: 1px solid var(--border);">
+                    <div class="flex items-center justify-between">
+                        <strong style="font-size: 13px; color: var(--navy);">${g.title}</strong>
+                        <span class="badge ${g.status === 'ACHIEVED' ? 'badge-success' : 'badge-primary'}">${g.status}</span>
+                    </div>
+                    <div class="flex items-center gap-4 mt-2" style="font-size: 12px; color: var(--text-secondary);">
+                        <span>Baseline: <strong>${g.baselineValue || '-'} ${g.unit || ''}</strong></span>
+                        <span>Target: <strong>${g.targetValue || '-'} ${g.unit || ''}</strong></span>
+                        <span>Latest: <strong style="color: var(--primary-blue);">${g.latestValue || g.baselineValue || '-'} ${g.unit || ''}</strong></span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRecentTimeline(events) {
+            const container = document.getElementById('overview-recent-timeline');
+            if (events.length === 0) {
+                container.innerHTML = `<p style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 12.5px;">No recorded timeline events.</p>`;
+                return;
+            }
+
+            container.innerHTML = events.slice(0, 3).map(e => `
+                <div class="flex items-start gap-3 p-2" style="border-bottom: 1px solid var(--border);">
+                    <div style="font-size: 14px; margin-top: 2px;">🔹</div>
+                    <div>
+                        <div style="font-size: 13px; font-weight: 600; color: var(--navy);">${e.title}</div>
+                        <div style="font-size: 11.5px; color: var(--text-secondary);">${e.eventDate} • ${e.category}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function navigateToTool(toolKey) {
+            const mapping = {
+                'ai-support': '/doctor-ai-support.html',
+                'prescription-safety': '/doctor-prescription-safety.html',
+                'timeline': '/doctor-patient-timeline.html',
+                'treatment-progress': '/doctor-treatment-progress.html'
+            };
+            const url = mapping[toolKey] || '/doctor-patient-overview.html';
+            window.location.href = `${url}?patientId=${currentPatientId}`;
+        }
+
+        // Prescription Modal Helpers
+        function renderDefaultMedicationRows() {
+            const builder = document.getElementById('rx-meds-builder');
+            builder.innerHTML = `
+                <div class="flex gap-2 items-center rx-med-row">
+                    <input type="text" class="form-input rx-med-name" placeholder="Medicine Name (e.g. Amoxicillin 500mg)" required />
+                    <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" style="max-width: 90px;" required />
+                    <input type="text" class="form-input rx-med-freq" placeholder="Freq (1-0-1)" required />
+                    <input type="text" class="form-input rx-med-dur" placeholder="Duration" style="max-width: 90px;" required />
+                    <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove">✕</button>
+                </div>
+            `;
+        }
+
+        function addMedicationRow() {
+            const builder = document.getElementById('rx-meds-builder');
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 items-center rx-med-row';
+            row.innerHTML = `
+                <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" required />
+                <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" style="max-width: 90px;" required />
+                <input type="text" class="form-input rx-med-freq" placeholder="Frequency" required />
+                <input type="text" class="form-input rx-med-dur" placeholder="Duration" style="max-width: 90px;" required />
+                <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove">✕</button>
+            `;
+            builder.appendChild(row);
+        }
+
+        function removeMedicationRow(btn) {
+            const rows = document.querySelectorAll('.rx-med-row');
+            if (rows.length > 1) {
+                btn.closest('.rx-med-row').remove();
+            } else {
+                window.toast.warning('Prescription must contain at least one medication.');
+            }
+        }
+
+        function openCreateRxModal() {
+            renderDefaultMedicationRows();
+            document.getElementById('create-rx-modal').classList.add('open');
+        }
+
+        function closeCreateRxModal() {
+            document.getElementById('create-rx-modal').classList.remove('open');
+        }
+
+        document.getElementById('create-rx-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const diagnosis = document.getElementById('rx-diag-input').value.trim();
+            const notes = document.getElementById('rx-notes-input').value.trim();
+
+            const rows = document.querySelectorAll('.rx-med-row');
+            const items = [];
+            rows.forEach(r => {
+                const nameIn = r.querySelector('.rx-med-name');
+                const dosageIn = r.querySelector('.rx-med-dosage');
+                const freqIn = r.querySelector('.rx-med-freq');
+                const durIn = r.querySelector('.rx-med-dur');
+
+                if (nameIn && nameIn.value.trim()) {
+                    items.push({
+                        medicineName: nameIn.value.trim(),
+                        dosage: dosageIn ? dosageIn.value.trim() : '500mg',
+                        frequency: freqIn ? freqIn.value.trim() : '1-0-1 After food',
+                        duration: durIn ? durIn.value.trim() : '5 Days',
+                        instructions: 'Take as directed by physician.'
+                    });
+                }
+            });
+
+            if (items.length === 0) {
+                window.toast.warning('Please prescribe at least one medication.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-issue-rx');
+            btn.disabled = true;
+            btn.innerText = 'Signing & Issuing...';
+
+            try {
+                const res = await window.api.createPrescription({ patientId: currentPatientId, diagnosis, notes, items });
+                window.toast.success('Prescription signed and issued successfully!');
+                closeCreateRxModal();
+                loadPatientOverview(currentPatientId);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to issue prescription');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Sign & Issue Prescription';
+            }
+        });
+    </script>
+</body>
+</html>

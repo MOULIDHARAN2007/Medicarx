@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Health Card — MediCareX</title>
+    <meta name="description" content="Digital Emergency Health Card with privacy-safe QR token for first responders, critical allergies, blood group, and emergency contacts.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .emergency-card-preview {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #ffffff;
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #ef4444;
+            box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        }
+
+        .emergency-card-preview::before {
+            content: '✚ EMERGENCY MEDICAL PROFILE';
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .blood-badge-lg {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #ef4444;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 900;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+
+        .qr-box {
+            background: #ffffff;
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+
+        @media (max-width: 1024px) {
+            .grid-cols-3 {
+                grid-template-columns: 1fr !important;
+            }
+            .col-span-2 {
+                grid-column: span 1 !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .emergency-card-preview {
+                padding: 1.25rem;
+            }
+            .emergency-card-preview::before {
+                position: static;
+                display: inline-block;
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        @media print {
+            .sidebar, .topbar, .page-header, .btn, .edit-section {
+                display: none !important;
+            }
+            .main-wrapper {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .emergency-card-preview {
+                border: 2px solid #000;
+                color: #000;
+                background: #fff !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Digital Emergency Health Card</h1>
+                    <p class="text-muted">Instant-access life-critical medical data and QR token for emergency first responders.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-secondary" onclick="window.print()">
+                        <span>🖨️ Print Wallet Card</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="scrollToEdit()">
+                        <span>✏️ Edit Emergency Info</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6 mt-6">
+                <!-- Visual Card Preview -->
+                <div class="col-span-2">
+                    <div class="emergency-card-preview" id="card-preview">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="blood-badge-lg" id="preview-blood-group">O+</div>
+                            <div>
+                                <h2 class="text-2xl font-bold text-white tracking-wide" id="preview-name">Patient Name</h2>
+                                <p class="text-sm text-gray-300" id="preview-phone">Phone: +91 98765 43210</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 text-sm mt-4">
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-red-400 font-bold uppercase tracking-wider block mb-1">🚨 Critical Allergies</span>
+                                <span class="font-medium text-white" id="preview-allergies">None declared</span>
+                            </div>
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-blue-400 font-bold uppercase tracking-wider block mb-1">🏥 Chronic Conditions</span>
+                                <span class="font-medium text-white" id="preview-conditions">None declared</span>
+                            </div>
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-green-400 font-bold uppercase tracking-wider block mb-1">📞 Emergency Contact</span>
+                                <div class="font-medium text-white" id="preview-contact">Jane Doe (Spouse)</div>
+                                <div class="text-xs text-gray-300" id="preview-contact-phone">+91 98765 00000</div>
+                            </div>
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
+                                <span class="text-xs text-purple-400 font-bold uppercase tracking-wider block mb-1">🛡️ Health Insurance</span>
+                                <div class="font-medium text-white" id="preview-insurance">Star Health Allied</div>
+                                <div class="text-xs text-gray-300" id="preview-policy">Policy # POL-998877</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-slate-700 flex justify-between items-center text-xs text-gray-400">
+                            <div>
+                                <span>Organ Donor: <strong class="text-emerald-400" id="preview-donor">YES (Registered)</strong></span>
+                            </div>
+                            <div>
+                                <span>MediCareX Emergency Token: <strong class="text-slate-200 font-mono" id="preview-token">TOKEN123</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR Code & Public Token Access -->
+                <div class="card flex flex-col items-center justify-center text-center p-6">
+                    <h3 class="font-bold text-lg mb-1">First-Responder QR Code</h3>
+                    <p class="text-xs text-muted mb-4">Emergency responders & doctors scan this QR code with their camera to instantly view verified allergies, blood group, and emergency contacts.</p>
+                    
+                    <div class="qr-box shadow-sm mb-3" id="qr-container" style="padding: 1.25rem; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-flex; justify-content: center; align-items: center;">
+                        <div id="qr-display" style="width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; background: #ffffff;"></div>
+                    </div>
+
+                    <div class="text-xs text-muted break-all bg-surface-subtle p-2.5 rounded w-full mb-3 border border-border">
+                        <span class="text-xs font-bold text-slate-700 block mb-0.5">Scannable Emergency URL:</span>
+                        <a id="public-link" href="#" target="_blank" class="text-primary font-mono select-all hover:underline" style="font-size: 11px;"></a>
+                    </div>
+
+                    <div class="flex flex-col gap-2 w-full">
+                        <a id="btn-test-responder" href="#" target="_blank" class="btn btn-sm btn-primary w-full justify-center">
+                            <span>🔍 Preview Responder View</span>
+                        </a>
+                        <button class="btn btn-sm btn-secondary w-full justify-center" onclick="copyEmergencyLink()">
+                            <span>📋 Copy Emergency Link</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger w-full justify-center text-xs mt-1" onclick="confirmRegenerateToken()">
+                            <span>🔄 Regenerate QR / Revoke Old</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Emergency Form -->
+            <div class="card mt-8 edit-section" id="edit-section">
+                <div class="card-header">
+                    <h3 class="card-title">Update Emergency Health Card Information</h3>
+                    <p class="text-xs text-muted">Keep your life-critical contacts, allergies, and blood group updated. Changes immediately reflect when the QR is scanned.</p>
+                </div>
+
+                <form id="emergency-card-form" class="p-4 space-y-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="card-blood-group">Blood Group *</label>
+                            <select id="card-blood-group" class="form-control" required>
+                                <option value="O+">O Positive (O+)</option>
+                                <option value="O-">O Negative (O-)</option>
+                                <option value="A+">A Positive (A+)</option>
+                                <option value="A-">A Negative (A-)</option>
+                                <option value="B+">B Positive (B+)</option>
+                                <option value="B-">B Negative (B-)</option>
+                                <option value="AB+">AB Positive (AB+)</option>
+                                <option value="AB-">AB Negative (AB-)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="card-contact-name">Emergency Contact Name *</label>
+                            <input type="text" id="card-contact-name" class="form-control" placeholder="e.g. Jane Doe" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="card-contact-phone">Emergency Contact Phone *</label>
+                            <input type="tel" id="card-contact-phone" class="form-control" placeholder="e.g. +91 98765 43210" required />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="card-contact-rel">Contact Relationship</label>
+                            <input type="text" id="card-contact-rel" class="form-control" placeholder="e.g. Spouse / Parent / Sibling" />
+                        </div>
+
+                        <div class="form-group flex items-center gap-3 pt-6">
+                            <input type="checkbox" id="card-organ-donor" class="form-checkbox h-5 w-5 text-primary" />
+                            <label for="card-organ-donor" class="text-sm font-semibold cursor-pointer">
+                                I am a registered Organ Donor (Pledge)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="card-allergies">Known Allergies (Medications / Food / Latex)</label>
+                            <textarea id="card-allergies" class="form-control" rows="2" placeholder="e.g. Penicillin, Peanuts, Sulfa drugs"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="card-chronic">Chronic Medical Conditions</label>
+                            <textarea id="card-chronic" class="form-control" rows="2" placeholder="e.g. Type 2 Diabetes, Hypertension, Asthma"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label" for="card-meds-summary">Current Ongoing Medications Summary</label>
+                            <input type="text" id="card-meds-summary" class="form-control" placeholder="e.g. Metformin 500mg, Amlodipine 5mg" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="card-insurance-prov">Insurance Provider & Policy #</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="card-insurance-prov" class="form-control" placeholder="Provider e.g. Star Health" />
+                                <input type="text" id="card-insurance-pol" class="form-control" placeholder="Policy # POL-12345" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-border">
+                        <button type="submit" class="btn btn-primary">
+                            <span>Save Emergency Health Card</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <script src="/js/libs/qrcode.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let currentPublicToken = '';
+        let qrCodeInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('patient-emergency-card');
+            loadEmergencyCard();
+        });
+
+        async function loadEmergencyCard() {
+            try {
+                const res = await window.api.getPatientEmergencyCard();
+                const card = res.data || {};
+                renderCard(card);
+            } catch (err) {
+                console.error(err);
+                window.toast.error('Failed to load emergency health card');
+            }
+        }
+
+        function renderCard(card) {
+            document.getElementById('preview-name').textContent = card.name || 'Patient Name';
+            document.getElementById('preview-phone').textContent = 'Phone: ' + (card.phone || 'N/A');
+            document.getElementById('preview-blood-group').textContent = card.bloodGroup || 'O+';
+            document.getElementById('preview-allergies').textContent = card.allergies && card.allergies.trim() ? card.allergies : 'None declared';
+            document.getElementById('preview-conditions').textContent = card.chronicConditions && card.chronicConditions.trim() ? card.chronicConditions : 'None declared';
+            document.getElementById('preview-contact').textContent = (card.emergencyContactName || 'None') + (card.emergencyContactRelation ? ` (${card.emergencyContactRelation})` : '');
+            document.getElementById('preview-contact-phone').textContent = card.emergencyContactPhone || '';
+            document.getElementById('preview-insurance').textContent = card.insuranceProvider || 'None specified';
+            document.getElementById('preview-policy').textContent = card.insurancePolicyNumber ? 'Policy # ' + card.insurancePolicyNumber : '';
+            document.getElementById('preview-donor').textContent = card.isOrganDonor ? 'YES (Registered)' : 'No';
+            document.getElementById('preview-token').textContent = card.publicToken || 'GENERATING';
+
+            currentPublicToken = card.publicToken || '';
+            const publicUrl = `${window.location.origin}/emergency-card.html?token=${encodeURIComponent(currentPublicToken)}`;
+            const publicLinkEl = document.getElementById('public-link');
+            publicLinkEl.textContent = publicUrl;
+            publicLinkEl.href = publicUrl;
+
+            const testBtn = document.getElementById('btn-test-responder');
+            if (testBtn) testBtn.href = publicUrl;
+
+            renderQrCode(publicUrl);
+
+            // Populate form
+            document.getElementById('card-blood-group').value = card.bloodGroup || 'O+';
+            document.getElementById('card-contact-name').value = card.emergencyContactName || '';
+            document.getElementById('card-contact-phone').value = card.emergencyContactPhone || '';
+            document.getElementById('card-contact-rel').value = card.emergencyContactRelation || '';
+            document.getElementById('card-organ-donor').checked = Boolean(card.isOrganDonor);
+            document.getElementById('card-allergies').value = card.allergies || '';
+            document.getElementById('card-chronic').value = card.chronicConditions || '';
+            document.getElementById('card-meds-summary').value = card.currentMedicationsSummary || '';
+            document.getElementById('card-insurance-prov').value = card.insuranceProvider || '';
+            document.getElementById('card-insurance-pol').value = card.insurancePolicyNumber || '';
+        }
+
+        function renderQrCode(url) {
+            const qrDisplay = document.getElementById('qr-display');
+            qrDisplay.innerHTML = '';
+
+            try {
+                if (typeof QRCode !== 'undefined') {
+                    qrCodeInstance = new QRCode(qrDisplay, {
+                        text: url,
+                        width: 220,
+                        height: 220,
+                        colorDark: '#0f172a',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } else {
+                    // Fallback to QR API if library not loaded
+                    const img = document.createElement('img');
+                    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}`;
+                    img.alt = 'Emergency QR Code';
+                    img.style.width = '220px';
+                    img.style.height = '220px';
+                    img.style.borderRadius = '8px';
+                    qrDisplay.appendChild(img);
+                }
+            } catch (e) {
+                console.error('Error generating QR Code:', e);
+                qrDisplay.innerHTML = `<span class="text-xs text-red-500">QR Generation error: ${e.message}</span>`;
+            }
+        }
+
+        async function confirmRegenerateToken() {
+            if (!confirm('⚠️ WARNING: Regenerating your emergency token will permanently invalidate all previously printed QR codes and shared emergency links. Continue?')) {
+                return;
+            }
+
+            try {
+                const res = await window.api.regenerateEmergencyToken();
+                if (res.success && res.data) {
+                    window.toast.success('Emergency QR Token regenerated successfully! Old QR is now invalid.');
+                    renderCard(res.data);
+                } else {
+                    window.toast.error(res.message || 'Failed to regenerate token');
+                }
+            } catch (err) {
+                console.error(err);
+                window.toast.error('Failed to regenerate emergency token');
+            }
+        }
+
+        function scrollToEdit() {
+            document.getElementById('edit-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyEmergencyLink() {
+            const url = document.getElementById('public-link').textContent;
+            navigator.clipboard.writeText(url).then(() => {
+                window.toast.success('Public emergency responder link copied to clipboard!');
+            }).catch(() => {
+                window.toast.info('Link ready for sharing: ' + url);
+            });
+        }
+
+        document.getElementById('emergency-card-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                bloodGroup: document.getElementById('card-blood-group').value,
+                emergencyContactName: document.getElementById('card-contact-name').value.trim(),
+                emergencyContactPhone: document.getElementById('card-contact-phone').value.trim(),
+                emergencyContactRelation: document.getElementById('card-contact-rel').value.trim(),
+                isOrganDonor: document.getElementById('card-organ-donor').checked,
+                allergies: document.getElementById('card-allergies').value.trim(),
+                chronicConditions: document.getElementById('card-chronic').value.trim(),
+                currentMedicationsSummary: document.getElementById('card-meds-summary').value.trim(),
+                insuranceProvider: document.getElementById('card-insurance-prov').value.trim(),
+                insurancePolicyNumber: document.getElementById('card-insurance-pol').value.trim()
+            };
+
+            try {
+                const res = await window.api.savePatientEmergencyCard(data);
+                window.toast.success('Emergency Health Card updated successfully!');
+                renderCard(res.data);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to save emergency card');
+            }
+        });
+    </script>
+</body>
+</html>

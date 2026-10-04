@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Health Information — MediCareX</title>
+    <meta name="description" content="Official MediCareX First-Responder Emergency Medical Profile. Verified life-critical medical data and emergency contact.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <style>
+        :root {
+            --emg-red: #ef4444;
+            --emg-dark: #0f172a;
+            --emg-card: #1e293b;
+        }
+
+        body {
+            background-color: #090d16;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1rem;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .emergency-container {
+            width: 100%;
+            max-width: 580px;
+            margin: 0 auto;
+        }
+
+        .emergency-header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            padding: 1.5rem;
+            color: #ffffff;
+            position: relative;
+            box-shadow: 0 10px 25px -5px rgba(220, 38, 38, 0.4);
+            border-bottom: 2px solid #f87171;
+        }
+
+        .emergency-header .badge {
+            background: rgba(0, 0, 0, 0.35);
+            color: #fecaca;
+            border: 1px solid rgba(254, 202, 202, 0.4);
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .emergency-body {
+            background: var(--emg-card);
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            padding: 1.5rem;
+            border: 1px solid #334155;
+            border-top: none;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .blood-badge {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #ef4444;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+            border: 3px solid #ffffff;
+            flex-shrink: 0;
+        }
+
+        .blood-badge .type {
+            font-size: 1.75rem;
+            line-height: 1;
+        }
+
+        .blood-badge .sub {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid #334155;
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-card.alert-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+        }
+
+        .info-card.success-card {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+            word-break: break-word;
+        }
+
+        .btn-call {
+            background: #10b981;
+            color: #ffffff;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-lg);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            width: 100%;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn-call:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .loading-state, .error-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background: var(--emg-card);
+            border-radius: var(--radius-xl);
+            border: 1px solid #334155;
+            width: 100%;
+            max-width: 580px;
+        }
+
+        .pulse-ring {
+            display: inline-block;
+            width: 48px;
+            height: 48px;
+            border: 4px solid #ef4444;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0.5rem;
+            }
+            .emergency-header, .emergency-body {
+                padding: 1.15rem;
+            }
+            .blood-badge {
+                width: 60px;
+                height: 60px;
+            }
+            .blood-badge .type {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="emergency-container">
+        <!-- Loading State -->
+        <div id="state-loading" class="loading-state">
+            <div class="pulse-ring mb-4"></div>
+            <h2 class="text-xl font-bold mb-2">Retrieving Emergency Medical Information...</h2>
+            <p class="text-sm text-gray-400">Verifying secure emergency QR token with MediCareX...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="state-error" class="error-state hidden">
+            <div class="text-5xl mb-3">⚠️</div>
+            <h2 class="text-xl font-bold text-red-400 mb-2" id="error-title">Invalid or Expired Emergency QR</h2>
+            <p class="text-sm text-gray-300 mb-4" id="error-message">This emergency QR code is no longer valid or has been revoked. No patient information is accessible.</p>
+            <div class="p-3 bg-slate-900/80 rounded-lg text-xs text-gray-400 border border-slate-700">
+                🔒 If this is an active medical emergency, please dial <strong>108 / 112</strong> immediately.
+            </div>
+            <div class="mt-4">
+                <a href="/" class="btn btn-secondary text-sm">Return to MediCareX Home</a>
+            </div>
+        </div>
+
+        <!-- Valid Emergency Content -->
+        <div id="state-content" class="hidden">
+            <div class="emergency-header">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">✚</span>
+                        <span class="font-extrabold tracking-wider text-sm uppercase">MediCareX Emergency Profile</span>
+                    </div>
+                    <span class="badge">🚨 First Responder View</span>
+                </div>
+                <h1 class="text-2xl font-black tracking-tight" id="patient-name">Patient Name</h1>
+                <p class="text-xs text-red-100 mt-1 opacity-90">Emergency Health Information Only • Protected by Secure Access Token</p>
+            </div>
+
+            <div class="emergency-body">
+                <!-- Top Summary Row: Blood Group + Quick Stats -->
+                <div class="flex items-center gap-4 bg-slate-900/90 p-4 rounded-xl border border-slate-700 mb-4">
+                    <div class="blood-badge">
+                        <span class="type" id="blood-group">O+</span>
+                        <span class="sub">Blood</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-xs text-gray-400 font-bold uppercase tracking-wide">Emergency Organ Donor Status</div>
+                        <div class="text-base font-bold text-emerald-400 mt-0.5" id="organ-donor-status">YES (Registered Donor Pledge)</div>
+                        <div class="text-xs text-gray-400 mt-1" id="last-updated-text">Verified Emergency Record</div>
+                    </div>
+                </div>
+
+                <!-- Critical Allergies -->
+                <div class="info-card alert-card">
+                    <div class="info-label text-red-400">
+                        <span>🚨 Critical Allergies (Medications / Food / Latex)</span>
+                    </div>
+                    <div class="info-value text-red-200 font-bold" id="critical-allergies">None declared</div>
+                </div>
+
+                <!-- Chronic Conditions -->
+                <div class="info-card">
+                    <div class="info-label text-blue-400">
+                        <span>🏥 Chronic Medical Conditions</span>
+                    </div>
+                    <div class="info-value" id="chronic-conditions">None declared</div>
+                </div>
+
+                <!-- Ongoing Medications Summary -->
+                <div class="info-card">
+                    <div class="info-label text-purple-400">
+                        <span>💊 Current Ongoing Medications Summary</span>
+                    </div>
+                    <div class="info-value text-gray-200" id="medications-summary">None declared</div>
+                </div>
+
+                <!-- Emergency Contact -->
+                <div class="info-card success-card">
+                    <div class="info-label text-emerald-400">
+                        <span>📞 Designated Emergency Contact</span>
+                    </div>
+                    <div class="flex justify-between items-center flex-wrap gap-2 mt-1">
+                        <div>
+                            <div class="font-bold text-lg text-white" id="contact-name">Jane Doe</div>
+                            <div class="text-xs text-gray-300" id="contact-relation">Relationship: Spouse</div>
+                        </div>
+                        <div class="w-full mt-2" id="contact-call-container">
+                            <a href="tel:" id="btn-call-contact" class="btn-call">
+                                <span>📞 Call Emergency Contact (<span id="contact-phone-display">+91 XXXXX XXXXX</span>)</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insurance Profile -->
+                <div class="info-card">
+                    <div class="info-label text-amber-400">
+                        <span>🛡️ Emergency Health Insurance</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-1 text-sm">
+                        <div>
+                            <span class="text-xs text-gray-400 block">Provider</span>
+                            <span class="font-semibold text-white" id="insurance-provider">Not specified</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 block">Policy Number</span>
+                            <span class="font-semibold text-white font-mono" id="insurance-policy">N/A</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disclaimer & Notice -->
+                <div class="p-3 bg-slate-900/60 rounded-lg text-xs text-gray-400 border border-slate-800 text-center">
+                    🔒 <strong>Privacy Assurance:</strong> This view is restricted to life-saving emergency medical data. Private EHR consultations, prescriptions, and full medical histories are not exposed.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+
+            if (!token || !token.trim()) {
+                showError('Missing Emergency Token', 'No emergency QR token provided. Please scan a valid MediCareX emergency card.');
+                return;
+            }
+
+            fetchEmergencyData(token.trim());
+        });
+
+        async function fetchEmergencyData(token) {
+            try {
+                const response = await fetch(`/api/emergency/card/public?token=${encodeURIComponent(token)}`);
+                const res = await response.json();
+
+                if (!response.ok || !res.success || !res.data) {
+                    showError('Invalid or Expired MediCareX Emergency QR', res.message || 'This emergency QR code is no longer valid or has been revoked.');
+                    return;
+                }
+
+                renderEmergencyData(res.data);
+            } catch (err) {
+                console.error(err);
+                showError('Network / Server Error', 'Unable to retrieve emergency health information at this moment. Please verify network connection or dial 108 / 112.');
+            }
+        }
+
+        function renderEmergencyData(card) {
+            document.getElementById('patient-name').textContent = card.patientName || 'Emergency Patient';
+            document.getElementById('blood-group').textContent = card.bloodGroup || 'O+';
+            
+            document.getElementById('organ-donor-status').textContent = card.isOrganDonor 
+                ? 'YES (Registered Organ Donor Pledge)' 
+                : 'No registered pledge';
+            if (!card.isOrganDonor) {
+                document.getElementById('organ-donor-status').className = 'text-base font-bold text-gray-300 mt-0.5';
+            }
+
+            document.getElementById('critical-allergies').textContent = card.allergies && card.allergies.trim() 
+                ? card.allergies 
+                : 'No known drug/food allergies declared';
+
+            document.getElementById('chronic-conditions').textContent = card.chronicConditions && card.chronicConditions.trim() 
+                ? card.chronicConditions 
+                : 'No chronic conditions reported';
+
+            document.getElementById('medications-summary').textContent = card.currentMedicationsSummary && card.currentMedicationsSummary.trim() 
+                ? card.currentMedicationsSummary 
+                : 'No active medications listed';
+
+            const cName = card.emergencyContactName && card.emergencyContactName.trim() ? card.emergencyContactName : 'None declared';
+            const cRel = card.emergencyContactRelation && card.emergencyContactRelation.trim() ? `Relationship: ${card.emergencyContactRelation}` : 'Relationship: Not specified';
+            const cPhone = card.emergencyContactPhone && card.emergencyContactPhone.trim() ? card.emergencyContactPhone : '';
+
+            document.getElementById('contact-name').textContent = cName;
+            document.getElementById('contact-relation').textContent = cRel;
+
+            if (cPhone) {
+                document.getElementById('btn-call-contact').href = `tel:${cPhone}`;
+                document.getElementById('contact-phone-display').textContent = cPhone;
+            } else {
+                document.getElementById('contact-call-container').innerHTML = '<span class="text-xs text-gray-400">No contact phone number provided</span>';
+            }
+
+            document.getElementById('insurance-provider').textContent = card.insuranceProvider && card.insuranceProvider.trim() ? card.insuranceProvider : 'None specified';
+            document.getElementById('insurance-policy').textContent = card.insurancePolicyNumber && card.insurancePolicyNumber.trim() ? card.insurancePolicyNumber : 'None';
+
+            if (card.lastUpdated) {
+                document.getElementById('last-updated-text').textContent = `Record verified • Updated: ${card.lastUpdated}`;
+            }
+
+            document.getElementById('state-loading').classList.add('hidden');
+            document.getElementById('state-error').classList.add('hidden');
+            document.getElementById('state-content').classList.remove('hidden');
+        }
+
+        function showError(title, message) {
+            document.getElementById('error-title').textContent = title;
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('state-loading').classList.add('hidden');
+            document.getElementById('state-content').classList.add('hidden');
+            document.getElementById('state-error').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

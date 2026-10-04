@@ -1,0 +1,50 @@
+# ==============================================================================
+# MediCareX — Git Ignore Configuration
+# ==============================================================================
+
+# Compiled Java Bytecode & Build Artifacts
+*.class
+backend/bin/
+bin/
+backend/target/
+target/
+
+# Local Embedded Database & Journals
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+backend/medicarex.db*
+medicarex.db*
+
+# Uploaded User Prescriptions (Preserve directory structure, ignore file contents)
+uploads/prescriptions/*
+!uploads/prescriptions/.gitkeep
+backend/uploads/prescriptions/*
+!backend/uploads/prescriptions/.gitkeep
+
+# Environment & Secrets Configuration
+.env
+backend/.env
+.env.local
+backend/.env.local
+*.env.local
+
+# IDE & Editor Configuration
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+*.log
+
+# OS Metadata
+Thumbs.db
+.DS_Store
+
+# Local tools and temporary files
+cloudflared.exe
+scratch/
+backend/test_*.pdf
+test_*.pdf
+

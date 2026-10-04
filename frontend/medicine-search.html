@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Search — MediCareX</title>
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = window.api.getUser();
+            if (user && user.role === 'DOCTOR') {
+                window.location.replace('/doctor-medicine-search.html');
+            } else if (user && user.role === 'PHARMACY') {
+                window.location.replace('/pharmacy-medicines.html');
+            } else if (user && user.role === 'ADMIN') {
+                window.location.replace('/admin-medicines.html');
+            } else {
+                window.location.replace('/search.html');
+            }
+        });
+    </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #64748b;">
+    <p>Redirecting to Medicine Search...</p>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Medicines — MediCareX Pharmacy</title>
+    <meta name="description" content="Visual card management of pharmacy product catalog, pricing, and stock visibility.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .medicine-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .medicine-card-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .manage-med-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-fast);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manage-med-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: #cbd5e1;
+        }
+
+        .manage-med-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .manage-med-body {
+            padding: 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Manage Medicines</h1>
+                        <p class="page-subtitle">Product catalog cards with stock availability and retail price management</p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="window.toast.info('Category manager launched.')">
+                            Manage Categories
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="window.location.href='/pharmacy-inventory.html'">
+                            + Add Stock
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 2rem;">
+                    <div class="tabs-header" style="margin-bottom: 1rem;">
+                        <button class="tab-btn active" onclick="setMedTab(this, 'All')">All Medicines</button>
+                        <button class="tab-btn" onclick="setMedTab(this, 'Active')">Active (In Stock)</button>
+                        <button class="tab-btn" onclick="setMedTab(this, 'Inactive')">Needs Restock</button>
+                    </div>
+
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="manage-search-input" placeholder="Search catalog by name or brand..." oninput="loadMedicineCards()" />
+                        </div>
+
+                        <select id="manage-cat-select" class="form-select" style="width: auto;" onchange="loadMedicineCards()">
+                            <option value="All">All Categories</option>
+                            <option value="Antibiotics">Antibiotics</option>
+                            <option value="Pain Relief">Pain Relief</option>
+                            <option value="Diabetes">Diabetes</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Allergy">Allergy</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Medicine Cards Grid -->
+                <div class="medicine-card-grid" id="manage-cards-container">
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
+                        Loading medicines catalog...
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentTabFilter = 'All';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('pharmacy-medicines');
+            loadMedicineCards();
+        });
+
+        function setMedTab(btn, tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTabFilter = tab;
+            loadMedicineCards();
+        }
+
+        async function loadMedicineCards() {
+            const container = document.getElementById('manage-cards-container');
+            const search = document.getElementById('manage-search-input').value.trim();
+            const category = document.getElementById('manage-cat-select').value;
+
+            try {
+                const res = await window.api.getMedicines({
+                    q: search,
+                    category: category,
+                    limit: 50
+                });
+
+                let list = res.data || [];
+                if (currentTabFilter === 'Active') {
+                    list = list.filter(m => m.overallStatus === 'In Stock');
+                } else if (currentTabFilter === 'Inactive') {
+                    list = list.filter(m => m.overallStatus !== 'In Stock');
+                }
+
+                if (list.length === 0) {
+                    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-muted);">No medicines found matching criteria.</div>`;
+                    return;
+                }
+
+                container.innerHTML = list.map(m => `
+                    <div class="manage-med-card">
+                        <img src="${m.imageUrl}" alt="${m.name}" class="manage-med-img" onerror="this.src='https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300'" />
+                        <div class="manage-med-body">
+                            <div>
+                                <div class="flex justify-between items-start" style="margin-bottom: 0.35rem;">
+                                    <span class="badge ${m.overallStatus === 'In Stock' ? 'badge-success' : (m.overallStatus === 'Low Stock' ? 'badge-warning' : 'badge-danger')}">
+                                        <span class="badge-dot"></span>
+                                        ${m.overallStatus}
+                                    </span>
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${m.form}</span>
+                                </div>
+                                <h3 style="font-size: 15px; color: var(--navy); font-weight: 700; margin-bottom: 2px;">${m.name}</h3>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 0.5rem;">${m.genericName}</div>
+                            </div>
+
+                            <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                                <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                                    <span style="font-size: 11px; color: var(--text-muted);">Retail Price</span>
+                                    <span style="font-size: 1.1rem; font-weight: 800; color: var(--navy);">₹${m.basePrice.toFixed(2)}</span>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button class="btn btn-sm btn-outline w-full" onclick="window.location.href='/medicine-details.html?id=${m.id}'">View</button>
+                                    <button class="btn btn-sm btn-primary w-full" onclick="window.location.href='/pharmacy-inventory.html'">Edit Stock</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div style="grid-column: 1/-1; padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

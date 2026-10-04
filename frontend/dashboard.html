@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard — MediCareX</title>
+    <meta name="description" content="MediCareX patient dashboard for medicine search, nearby pharmacies, digital prescriptions, and AI assistant.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Topbar Header -->
+            <header class="topbar" id="app-topbar"></header>
+
+            <!-- Page Body -->
+            <main class="page-container">
+                <!-- Welcome Banner Card -->
+                <div class="patient-welcome-card">
+                    <div>
+                        <div class="welcome-title" id="welcome-user-name">Welcome back! 👋</div>
+                        <div class="welcome-subtext">Find verified medicines in stock across Bangalore, connect with your physician, and check local pharmacy prices in real time.</div>
+                    </div>
+                    <button class="btn btn-secondary btn-lg" onclick="window.location.href='/search.html'" style="background: #ffffff; color: var(--primary-blue); font-weight: 600; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                        Find Medicine Now
+                    </button>
+                </div>
+
+                <!-- 4 Quick Action Cards -->
+                <div class="quick-actions-grid">
+                    <div class="quick-action-card" onclick="window.location.href='/emergency-center.html'" style="border: 2px solid #ef4444; background: #fef2f2;">
+                        <div class="quick-action-icon" style="background: #fee2e2; color: #dc2626;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        </div>
+                        <div>
+                            <div class="quick-action-title text-danger font-bold">Emergency SOS</div>
+                            <div class="quick-action-desc">Dispatch ambulance unit</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-action-card" onclick="window.location.href='/patient-medicine-supply.html'">
+                        <div class="quick-action-icon" style="background: #eff6ff; color: #2563eb;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div>
+                            <div class="quick-action-title">Medicine Supply</div>
+                            <div class="quick-action-desc">Refill countdown & doses</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-action-card" onclick="window.location.href='/patient-emergency-card.html'">
+                        <div class="quick-action-icon" style="background: #ecfdf5; color: #10b981;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
+                        <div>
+                            <div class="quick-action-title">Emergency ID Card</div>
+                            <div class="quick-action-desc">Allergies & responder QR</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-action-card" onclick="window.location.href='/patient-medical-expenses.html'">
+                        <div class="quick-action-icon" style="background: #fffbeb; color: #f59e0b;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                        </div>
+                        <div>
+                            <div class="quick-action-title">Medical Expenses</div>
+                            <div class="quick-action-desc">Annual bills & receipts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Appointment Card / Banner -->
+                <div class="card" id="upcoming-appointment-section" style="padding: 1.25rem 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--primary-blue);">
+                    <div style="color: var(--text-muted); font-size: 13px;">Checking appointments...</div>
+                </div>
+
+                <!-- 4 Key Statistics Cards -->
+                <div class="stats-grid-4">
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Recent Searches</div>
+                            <div class="stat-value" id="stat-recent-searches">8</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Searched this week</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Available Medicines</div>
+                            <div class="stat-value" id="stat-available-medicines">10</div>
+                            <div style="font-size: 11px; color: var(--success); font-weight: 500;">94% in stock nearby</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Saved Pharmacies</div>
+                            <div class="stat-value" id="stat-saved-pharmacies">5</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Indiranagar & Koramangala</div>
+                        </div>
+                        <div class="stat-icon purple">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" onclick="window.location.href='/prescription.html'" style="cursor: pointer;">
+                        <div>
+                            <div class="stat-label">Active Prescriptions</div>
+                            <div class="stat-value" id="stat-active-prescriptions">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" id="stat-active-rx-sub">No active prescriptions</div>
+                        </div>
+                        <div class="stat-icon amber">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Recent Medicines & Nearby Pharmacies -->
+                <div class="dashboard-grid-2">
+                    <!-- Left: Recent Medicines -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--navy);">Recent Medicines</h3>
+                                <p style="font-size: 12px; color: var(--text-secondary);">Frequently searched & prescribed medications</p>
+                            </div>
+                            <a href="/search.html" class="btn btn-sm btn-outline">View All</a>
+                        </div>
+                        <div id="recent-medicines-list">
+                            <!-- Populated dynamically from API -->
+                            <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading medicines...</div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Nearby Pharmacies -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--navy);">Nearby Pharmacies</h3>
+                                <p style="font-size: 12px; color: var(--text-secondary);">Verified stores close to Indiranagar</p>
+                            </div>
+                            <a href="/map.html" class="btn btn-sm btn-outline">Open Map</a>
+                        </div>
+                        <div id="nearby-pharmacies-list">
+                            <!-- Populated dynamically from API -->
+                            <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading pharmacies...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Assistant Promotional Action Strip -->
+                <div class="ai-promo-strip">
+                    <div class="flex items-center gap-4">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; background: #8b5cf6; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">
+                            🤖
+                        </div>
+                        <div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #4c1d95;">Need help understanding your prescription?</div>
+                            <div style="font-size: 13px; color: #6d28d9;">MediCareX AI can explain dosage timing, side effect warnings, and locate generic alternatives.</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.location.href='/ai-assistant.html'" style="background: #7c3aed; border: none;">
+                        Ask MediCareX AI
+                    </button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = window.api.getCurrentUser();
+            if (user && user.role) {
+                const role = user.role.toUpperCase();
+                if (role === 'DOCTOR') { window.location.href = '/doctor-dashboard.html'; return; }
+                if (role === 'PHARMACY') { window.location.href = '/pharmacy-dashboard.html'; return; }
+                if (role === 'ADMIN') { window.location.href = '/admin-dashboard.html'; return; }
+                if (role === 'AMBULANCE') { window.location.href = '/ambulance-dashboard.html'; return; }
+            }
+
+            window.Shell.init('dashboard');
+            
+            if (user?.fullName) {
+                document.getElementById('welcome-user-name').innerText = `Welcome back, ${user.fullName.split(' ')[0]}! 👋`;
+            }
+
+            loadDashboardData();
+        });
+
+        async function loadDashboardData() {
+            try {
+                // 1. Fetch Medicines
+                const medRes = await window.api.getMedicines({ limit: 4 });
+                const medList = document.getElementById('recent-medicines-list');
+                if (medRes.data?.length > 0) {
+                    medList.innerHTML = medRes.data.map(m => `
+                        <div class="medicine-card-row" onclick="window.location.href='/medicine-details.html?id=${m.id}'" style="cursor: pointer;">
+                            <div class="flex items-center" style="flex: 1;">
+                                <img src="${m.imageUrl}" alt="${m.name}" class="medicine-thumb" onerror="this.src='https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=100'" />
+                                <div class="medicine-info-col">
+                                    <div class="medicine-name-txt">${m.name}</div>
+                                    <div class="medicine-generic-txt">${m.genericName} • ${m.form}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="badge ${m.overallStatus === 'In Stock' ? 'badge-success' : (m.overallStatus === 'Low Stock' ? 'badge-warning' : 'badge-danger')}">
+                                    <span class="badge-dot"></span>
+                                    ${m.overallStatus}
+                                </span>
+                                <div style="font-size: 14px; font-weight: 700; color: var(--navy); min-width: 60px; text-align: right;">₹${m.basePrice.toFixed(2)}</div>
+                                <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); window.location.href='/medicine-details.html?id=${m.id}'">View</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // 2. Fetch Nearby Pharmacies
+                const pharmRes = await window.api.getPharmacies();
+                const pharmList = document.getElementById('nearby-pharmacies-list');
+                if (pharmRes.data?.length > 0) {
+                    pharmList.innerHTML = pharmRes.data.slice(0, 4).map(p => `
+                        <div class="pharmacy-card-row" onclick="window.location.href='/map.html'" style="cursor: pointer;">
+                            <div class="flex items-center gap-3">
+                                <div style="width: 40px; height: 40px; border-radius: 8px; background: #eff6ff; color: var(--primary-blue); display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                                    🏥
+                                </div>
+                                <div class="flex flex-col">
+                                    <span style="font-size: 13px; font-weight: 600; color: var(--navy);">${p.pharmacyName}</span>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">${p.address} • ${p.distanceKm} km away</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="badge ${p.is24Hours ? 'badge-blue' : 'badge-success'}">${p.is24Hours ? '24/7' : 'Open'}</span>
+                                <span style="font-size: 12px; font-weight: 600; color: #d97706;">★ ${p.rating}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // 3. Fetch Real Prescriptions for Patient
+                try {
+                    const rxRes = await window.api.getPrescriptions();
+                    const prescriptions = rxRes.data || [];
+                    const rxCount = prescriptions.length;
+                    const countEl = document.getElementById('stat-active-prescriptions');
+                    const subEl = document.getElementById('stat-active-rx-sub');
+                    const quickDescEl = document.getElementById('quick-action-rx-desc');
+                    
+                    if (countEl) countEl.innerText = rxCount;
+                    if (subEl) {
+                        if (rxCount === 0) {
+                            subEl.innerText = 'No active prescriptions';
+                            subEl.style.color = 'var(--text-secondary)';
+                        } else {
+                            const latest = prescriptions[0];
+                            const docName = latest.doctorName ? (latest.doctorName.startsWith('Dr.') ? latest.doctorName : `Dr. ${latest.doctorName}`) : 'Doctor Issued';
+                            subEl.innerText = docName;
+                            subEl.style.color = 'var(--primary-blue)';
+                        }
+                    }
+                    if (quickDescEl) {
+                        quickDescEl.innerText = rxCount === 0 ? 'No active prescriptions' : `${rxCount} active digital prescription${rxCount > 1 ? 's' : ''}`;
+                    }
+                } catch (rxErr) {
+                    console.warn('Could not fetch prescriptions for dashboard stats:', rxErr);
+                }
+
+                // 4. Fetch Real Appointments for Patient
+                try {
+                    const apptRes = await window.api.getAppointments();
+                    const appointments = apptRes.data || [];
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const upcoming = appointments.find(a => (a.status === 'Confirmed' || a.status === 'Scheduled' || a.status === 'Pending') && a.appointmentDate >= todayStr);
+                    
+                    const apptSection = document.getElementById('upcoming-appointment-section');
+                    if (apptSection) {
+                        if (upcoming) {
+                            apptSection.innerHTML = `
+                                <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                                    <div class="flex items-center gap-4">
+                                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #eff6ff; color: var(--primary-blue); display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                                            🩺
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--primary-blue); letter-spacing: 0.5px;">Upcoming Appointment</span>
+                                                <span class="badge badge-success">${upcoming.status}</span>
+                                            </div>
+                                            <div style="font-size: 15px; font-weight: 700; color: var(--navy); margin-top: 2px;">
+                                                ${upcoming.doctorName}
+                                            </div>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                                ${upcoming.appointmentDate} · ${upcoming.appointmentTime} · ${upcoming.doctorSpecialization || upcoming.specialization || 'Consultation'} (${upcoming.hospitalAffiliation || 'Manipal Hospital'})
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <a href="/appointments.html" class="btn btn-sm btn-primary">View Appointment</a>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            apptSection.innerHTML = `
+                                <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                                    <div class="flex items-center gap-4">
+                                        <div style="width: 48px; height: 48px; border-radius: 50%; background: #f8fafc; color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                                            📅
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 14px; font-weight: 700; color: var(--navy);">No upcoming appointments</div>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">Book a consultation with top specialist physicians in Bangalore.</div>
+                                        </div>
+                                    </div>
+                                    <a href="/doctor-search.html" class="btn btn-sm btn-primary">Book Appointment</a>
+                                </div>
+                            `;
+                        }
+                    }
+                } catch (apptErr) {
+                    console.warn('Could not load appointment summary for dashboard:', apptErr);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>

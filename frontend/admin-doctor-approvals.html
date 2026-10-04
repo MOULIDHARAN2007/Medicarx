@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Applications & Approvals — MediCareX Admin</title>
+    <meta name="description" content="Review, verify credentials, and approve or reject doctor practitioner applications.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center" style="margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h1 class="page-title">Doctor Applications & Approvals</h1>
+                        <p class="page-subtitle">Review medical licenses, specialization credentials, and activate verified doctor accounts</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="loadApplications()">
+                        🔄 Refresh List
+                    </button>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="doc-search-input" placeholder="Search applicant, email, phone, or license..." oninput="loadApplications()" />
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <select id="doc-status-select" class="form-select" style="width: auto;" onchange="loadApplications()">
+                                <option value="All">All Statuses</option>
+                                <option value="PENDING" selected>Pending Review</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applications Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Doctor Name</th>
+                                    <th>Contact Information</th>
+                                    <th>Specialization & Qualification</th>
+                                    <th>License Number</th>
+                                    <th>Submitted Date</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="doc-tbody">
+                                <tr>
+                                    <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading doctor applications...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Approve Confirmation Modal -->
+    <div class="modal-overlay" id="approve-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #d1fae5;">
+                <h3 style="color: #065f46; display: flex; align-items: center; gap: 8px;">
+                    <span>✅</span> Approve Doctor Account?
+                </h3>
+                <button class="btn-icon" onclick="closeApproveModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Are you sure you want to approve and activate the practitioner account for <strong id="approve-doc-name" style="color: var(--primary-blue);">Doctor Name</strong>?
+                </p>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: #166534;">
+                    ✓ The doctor's login will be activated immediately and they will be able to manage appointments, patients, and issue electronic prescriptions.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeApproveModal()">Cancel</button>
+                <button type="button" id="btn-confirm-approve" class="btn btn-success" style="background: #10b981; color: white; border: none;" onclick="confirmApprove()">
+                    Approve Doctor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Confirmation Modal -->
+    <div class="modal-overlay" id="reject-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #fee2e2;">
+                <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                    <span>❌</span> Reject Doctor Application
+                </h3>
+                <button class="btn-icon" onclick="closeRejectModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Reject application for <strong id="reject-doc-name" style="color: #dc2626;">Doctor Name</strong>?
+                </p>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" for="reject-reason-input">Rejection Reason / Notes (Audit Record)</label>
+                    <textarea id="reject-reason-input" class="form-input" rows="3" placeholder="e.g. Medical council license number could not be verified or expired."></textarea>
+                </div>
+                <div style="background: #fef2f2; border: 1px solid #fecdd3; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 12px; color: #991b1b; margin-top: 0.5rem;">
+                    ℹ️ The account will remain inactive. The application record will be preserved for administrative audit history.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+                <button type="button" id="btn-confirm-reject" class="btn btn-danger" style="background: #ef4444; color: white; border: none;" onclick="confirmReject()">
+                    Reject Application
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentApplications = [];
+        let selectedApp = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-doctor-approvals');
+            loadApplications();
+        });
+
+        async function loadApplications() {
+            const tbody = document.getElementById('doc-tbody');
+            const search = document.getElementById('doc-search-input').value.trim();
+            const status = document.getElementById('doc-status-select').value;
+
+            try {
+                const res = await window.api.getDoctorApprovals({
+                    status: status,
+                    query: search
+                });
+
+                currentApplications = res.data || [];
+                if (currentApplications.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-muted);">No doctor applications found matching the selected filters.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = currentApplications.map(app => {
+                    const details = app.details || {};
+                    const spec = details.specialization || details.specialty || 'General Medicine';
+                    const qual = details.qualification || details.degree || 'MBBS';
+                    const lic = details.licenseNumber || details.registrationNumber || details.license || 'N/A';
+                    const isPending = (app.status || '').toUpperCase() === 'PENDING';
+
+                    let statusBadge = '<span class="badge badge-warning"><span class="badge-dot"></span>Pending Review</span>';
+                    if (app.status === 'APPROVED') {
+                        statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Approved</span>';
+                    } else if (app.status === 'REJECTED') {
+                        statusBadge = `<span class="badge badge-danger" title="${escapeHtml(app.rejectionReason || 'Rejected')}"><span class="badge-dot"></span>Rejected</span>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>
+                                <strong style="font-size: 14px; color: var(--navy); display: block;">${escapeHtml(app.applicantName)}</strong>
+                                <div style="font-size: 11px; color: var(--text-muted);">App #${app.id} • User #${app.userId}</div>
+                            </td>
+                            <td>
+                                <div style="font-size: 13px; color: var(--navy); font-weight: 500;">${escapeHtml(app.email)}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(app.phone || '-')}</div>
+                            </td>
+                            <td>
+                                <strong style="font-size: 13px; color: var(--navy);">${escapeHtml(spec)}</strong>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${escapeHtml(qual)}</div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155;">
+                                    ${escapeHtml(lic)}
+                                </span>
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">
+                                ${app.submittedAt ? app.submittedAt.substring(0, 16) : '-'}
+                            </td>
+                            <td>${statusBadge}</td>
+                            <td style="text-align: right;">
+                                ${isPending ? `
+                                    <div class="flex gap-2" style="justify-content: flex-end;">
+                                        <button class="btn btn-sm btn-success" style="background: #10b981; color: white; border: none; font-size: 12px; padding: 4px 10px;" onclick="openApproveModal(${app.id})">
+                                            ✓ Approve
+                                        </button>
+                                        <button class="btn btn-sm btn-danger-outline" style="font-size: 12px; padding: 4px 10px;" onclick="openRejectModal(${app.id})">
+                                            ✕ Reject
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">
+                                        ${app.status === 'APPROVED' ? 'Active' : (app.rejectionReason ? 'Reason: ' + escapeHtml(app.rejectionReason) : 'Processed')}
+                                    </span>
+                                `}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        function openApproveModal(id) {
+            const app = currentApplications.find(a => a.id === id);
+            if (!app) return;
+            selectedApp = app;
+            document.getElementById('approve-doc-name').innerText = app.applicantName;
+            document.getElementById('approve-modal').classList.add('open');
+        }
+
+        function closeApproveModal() {
+            document.getElementById('approve-modal').classList.remove('open');
+            selectedApp = null;
+        }
+
+        async function confirmApprove() {
+            if (!selectedApp) return;
+            const btn = document.getElementById('btn-confirm-approve');
+            btn.disabled = true;
+            btn.innerText = 'Approving...';
+
+            try {
+                const res = await window.api.approveDoctorApplication(selectedApp.id);
+                window.toast.success(res.message || `Dr. ${selectedApp.applicantName} approved successfully!`);
+                closeApproveModal();
+                loadApplications();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to approve doctor.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Approve Doctor';
+            }
+        }
+
+        function openRejectModal(id) {
+            const app = currentApplications.find(a => a.id === id);
+            if (!app) return;
+            selectedApp = app;
+            document.getElementById('reject-doc-name').innerText = app.applicantName;
+            document.getElementById('reject-reason-input').value = '';
+            document.getElementById('reject-modal').classList.add('open');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('reject-modal').classList.remove('open');
+            selectedApp = null;
+        }
+
+        async function confirmReject() {
+            if (!selectedApp) return;
+            const btn = document.getElementById('btn-confirm-reject');
+            const reason = document.getElementById('reject-reason-input').value.trim();
+            btn.disabled = true;
+            btn.innerText = 'Rejecting...';
+
+            try {
+                const res = await window.api.rejectDoctorApplication(selectedApp.id, reason);
+                window.toast.success(res.message || `Application for ${selectedApp.applicantName} rejected.`);
+                closeRejectModal();
+                loadApplications();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to reject application.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Reject Application';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

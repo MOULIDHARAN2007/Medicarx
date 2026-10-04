@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings — MediCareX</title>
+    <meta name="description" content="Manage security credentials, notification preferences, two-factor authentication, and account settings.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Account Settings</h1>
+                        <p class="page-subtitle">Configure security credentials, notifications, and active sessions</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid-2">
+                    <!-- Left Column: Password & Security -->
+                    <div class="flex flex-col gap-6">
+                        <!-- Change Password Card -->
+                        <div class="card" style="padding: 2rem;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); font-weight: 700; margin-bottom: 0.5rem;">
+                                Change Password
+                            </h3>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                                Ensure your account is using a secure, long password.
+                            </p>
+
+                            <form id="password-form">
+                                <div class="form-group">
+                                    <label class="form-label" for="curr-pass">Current Password</label>
+                                    <input type="password" id="curr-pass" class="form-input" placeholder="••••••••" required />
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="new-pass">New Password</label>
+                                    <input type="password" id="new-pass" class="form-input" placeholder="••••••••" required minlength="6" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="confirm-new-pass">Confirm New Password</label>
+                                    <input type="password" id="confirm-new-pass" class="form-input" placeholder="••••••••" required minlength="6" />
+                                </div>
+
+                                <button type="submit" id="btn-change-pass" class="btn btn-primary w-full">
+                                    Update Password
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Session Control Card -->
+                        <div class="card" style="padding: 2rem;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); font-weight: 700; margin-bottom: 0.5rem;">
+                                Active Session
+                            </h3>
+                            <div class="flex justify-between items-center" style="margin-top: 1rem; padding: 1rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                                <div class="flex items-center gap-3">
+                                    <div style="font-size: 20px;">💻</div>
+                                    <div>
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--navy);">Current Browser Session</div>
+                                        <div style="font-size: 11px; color: var(--success); font-weight: 500;">● Active Now (JWT Signed)</div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="window.api.logout()">Log Out</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Notification Preferences & Privacy -->
+                    <div class="flex flex-col gap-6">
+                        <div class="card" style="padding: 2rem;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); font-weight: 700; margin-bottom: 0.5rem;">
+                                Notification Preferences
+                            </h3>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                                Control alert delivery channels and clinical reminders.
+                            </p>
+
+                            <form id="settings-form">
+                                <div class="flex flex-col gap-4">
+                                    <label class="flex justify-between items-center" style="cursor: pointer;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: var(--navy);">Email Notifications</strong>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">Prescription copies, receipts, and appointment confirmations</div>
+                                        </div>
+                                        <input type="checkbox" id="set-email" checked style="width: 18px; height: 18px; accent-color: var(--primary-blue);" />
+                                    </label>
+
+                                    <div style="border-top: 1px solid var(--border);"></div>
+
+                                    <label class="flex justify-between items-center" style="cursor: pointer;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: var(--navy);">SMS Alerts</strong>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">Urgent medication stock alerts and appointment SMS</div>
+                                        </div>
+                                        <input type="checkbox" id="set-sms" checked style="width: 18px; height: 18px; accent-color: var(--primary-blue);" />
+                                    </label>
+
+                                    <div style="border-top: 1px solid var(--border);"></div>
+
+                                    <label class="flex justify-between items-center" style="cursor: pointer;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: var(--navy);">Live Stock & Refill Alerts</strong>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">Notify when saved medicines become available in nearby stores</div>
+                                        </div>
+                                        <input type="checkbox" id="set-stock" checked style="width: 18px; height: 18px; accent-color: var(--primary-blue);" />
+                                    </label>
+                                </div>
+
+                                <button type="submit" id="btn-save-settings" class="btn btn-primary w-full" style="margin-top: 2rem;">
+                                    Save Preferences
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('settings');
+            loadSettings();
+        });
+
+        async function loadSettings() {
+            try {
+                const res = await window.api.getUserSettings();
+                const s = res.data;
+                if (s) {
+                    document.getElementById('set-email').checked = s.emailNotifications;
+                    document.getElementById('set-sms').checked = s.smsNotifications;
+                    document.getElementById('set-stock').checked = s.stockAlerts;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.getElementById('settings-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-settings');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const payload = {
+                emailNotifications: document.getElementById('set-email').checked,
+                smsNotifications: document.getElementById('set-sms').checked,
+                stockAlerts: document.getElementById('set-stock').checked
+            };
+
+            try {
+                await window.api.updateUserSettings(payload);
+                window.toast.success('Notification preferences saved successfully!');
+            } catch (err) {
+                window.toast.error(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Preferences';
+            }
+        });
+
+        document.getElementById('password-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const curr = document.getElementById('curr-pass').value;
+            const newP = document.getElementById('new-pass').value;
+            const conf = document.getElementById('confirm-new-pass').value;
+
+            if (newP !== conf) {
+                window.toast.error('New passwords do not match');
+                return;
+            }
+
+            const btn = document.getElementById('btn-change-pass');
+            btn.disabled = true;
+            btn.innerText = 'Verifying & Updating...';
+
+            try {
+                await window.api.changePassword({ currentPassword: curr, newPassword: newP });
+                window.toast.success('Password changed successfully!');
+                document.getElementById('password-form').reset();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to change password');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Update Password';
+            }
+        });
+    </script>
+</body>
+</html>

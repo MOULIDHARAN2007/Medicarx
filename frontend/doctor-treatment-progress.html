@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treatment Progress Tracker — MediCareX Doctor</title>
+    <meta name="description" content="Track longitudinal patient clinical treatment goals, baseline metrics, target benchmarks, and progress logs.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Shared Patient Context Header -->
+                <div id="patient-context-banner"></div>
+
+                <!-- Treatment Goals Header & Actions -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h3 style="font-size: 1.1rem; color: var(--navy); margin: 0;">📈 Patient Treatment Goals & Progress</h3>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0.2rem 0 0 0;">Monitor therapeutic milestones, baseline vs target, and quantitative health indicators</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="openCreateGoalModal()">
+                            + Add Treatment Goal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Goals Grid -->
+                <div id="treatment-goals-root" class="flex flex-col gap-4">
+                    <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading treatment goals...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Goal Modal -->
+    <div class="modal-overlay" id="create-goal-modal">
+        <div class="modal-container" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Set New Treatment Goal</h3>
+                <button class="btn-icon" onclick="closeCreateGoalModal()">✕</button>
+            </div>
+            <form id="create-goal-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="goal-title-in">Goal Title</label>
+                        <input type="text" id="goal-title-in" class="form-input" placeholder="e.g. Blood Pressure Regulation, HbA1c Reduction" required />
+                    </div>
+
+                    <div class="grid grid-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="goal-metric-in">Clinical Metric</label>
+                            <input type="text" id="goal-metric-in" class="form-input" placeholder="e.g. Systolic/Diastolic BP" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="goal-unit-in">Unit</label>
+                            <input type="text" id="goal-unit-in" class="form-input" placeholder="e.g. mmHg, %, mg/dL" value="mmHg" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="goal-base-in">Baseline Value</label>
+                            <input type="text" id="goal-base-in" class="form-input" placeholder="e.g. 150/95" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="goal-target-in">Target Value</label>
+                            <input type="text" id="goal-target-in" class="form-input" placeholder="e.g. 120/80" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="goal-notes-in">Clinical Notes</label>
+                        <textarea id="goal-notes-in" class="form-textarea" rows="2" placeholder="e.g. Lifestyle modification + Amlodipine 5mg OD. Review in 4 weeks."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateGoalModal()">Cancel</button>
+                    <button type="submit" id="btn-save-goal" class="btn btn-primary">Save Treatment Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Log Progress Reading Modal -->
+    <div class="modal-overlay" id="log-progress-modal">
+        <div class="modal-container" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Log Measurement Reading</h3>
+                <button class="btn-icon" onclick="closeLogProgressModal()">✕</button>
+            </div>
+            <form id="log-progress-form">
+                <input type="hidden" id="log-goal-id" value="" />
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="log-val-in">Measured Value</label>
+                        <input type="text" id="log-val-in" class="form-input" placeholder="e.g. 128/82" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="log-status-select">Update Goal Status</label>
+                        <select id="log-status-select" class="form-select">
+                            <option value="IN_PROGRESS">IN_PROGRESS (Improving)</option>
+                            <option value="ACHIEVED">ACHIEVED (Target Reached)</option>
+                            <option value="ON_HOLD">ON_HOLD (Under Revision)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="log-notes-in">Clinical Observation Notes</label>
+                        <textarea id="log-notes-in" class="form-textarea" rows="2" placeholder="e.g. Patient compliant with medication. No symptoms reported."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeLogProgressModal()">Cancel</button>
+                    <button type="submit" id="btn-save-progress" class="btn btn-primary">Save Measurement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/doctor-context.js"></script>
+    <script>
+        let currentPatientId = 1;
+        let currentPatientData = null;
+        let currentGoals = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-treatment-progress');
+            currentPatientId = window.DoctorContext.getSelectedPatientId();
+            loadTreatmentGoals(currentPatientId);
+        });
+
+        async function loadTreatmentGoals(patientId) {
+            currentPatientId = patientId;
+            try {
+                // Fetch overview for header context
+                const resOverview = await window.api.getDoctorPatientOverview(patientId);
+                const overviewData = resOverview.data || {};
+                currentPatientData = overviewData.patient || {};
+
+                window.DoctorContext.renderPatientHeader('patient-context-banner', currentPatientData, 'treatment-progress');
+                window.DoctorContext.loadPatientsRoster('doctor-patient-switcher', currentPatientId, (newId) => {
+                    loadTreatmentGoals(newId);
+                });
+
+                // Fetch dedicated treatment goals
+                const resGoals = await window.api.getDoctorTreatmentGoals(patientId);
+                currentGoals = resGoals.data || [];
+                renderGoalsList();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('treatment-goals-root').innerHTML = `
+                    <p style="color: var(--danger); text-align: center; padding: 2rem;">Error loading treatment goals: ${err.message}</p>
+                `;
+            }
+        }
+
+        function renderGoalsList() {
+            const root = document.getElementById('treatment-goals-root');
+
+            if (currentGoals.length === 0) {
+                root.innerHTML = `
+                    <div class="card" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📈</div>
+                        <h4 style="margin: 0; color: var(--navy);">No Treatment Goals Defined</h4>
+                        <p style="font-size: 13px; max-width: 400px; margin: 0.5rem auto 1.25rem auto; color: var(--text-secondary);">
+                            Set therapeutic goals such as blood pressure control, glycemic control, or physical rehab benchmarks to track longitudinal patient outcomes.
+                        </p>
+                        <button class="btn btn-primary" onclick="openCreateGoalModal()">+ Add Treatment Goal</button>
+                    </div>
+                `;
+                return;
+            }
+
+            root.innerHTML = currentGoals.map(g => {
+                const entries = g.progressEntries || [];
+                const latestVal = g.latestValue || (entries.length > 0 ? entries[entries.length - 1].value : g.baselineValue);
+                const statusBadge = g.status === 'ACHIEVED' ? 'badge-success' : (g.status === 'ON_HOLD' ? 'badge-warning' : 'badge-primary');
+
+                return `
+                    <div class="card p-4">
+                        <div class="flex items-center justify-between flex-wrap gap-2 pb-3 mb-3" style="border-bottom: 1px solid var(--border);">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--navy); margin: 0;">${g.title}</h4>
+                                    <span class="badge ${statusBadge}">${g.status}</span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Metric: <strong>${g.metricName}</strong> (${g.unit || 'units'})</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline" onclick="openLogProgressModal(${g.id})">+ Log Measurement</button>
+                        </div>
+
+                        <!-- 3-Metrics Summary -->
+                        <div class="grid grid-3 gap-3 mb-4">
+                            <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Baseline</div>
+                                <div style="font-size: 1.15rem; font-weight: 700; color: var(--navy); margin-top: 2px;">${g.baselineValue || '-'} <span style="font-size: 11px; font-weight: normal;">${g.unit || ''}</span></div>
+                            </div>
+
+                            <div class="p-3" style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;">
+                                <div style="font-size: 11px; font-weight: 600; color: #065F46; text-transform: uppercase;">Target Goal</div>
+                                <div style="font-size: 1.15rem; font-weight: 700; color: #047857; margin-top: 2px;">${g.targetValue || '-'} <span style="font-size: 11px; font-weight: normal;">${g.unit || ''}</span></div>
+                            </div>
+
+                            <div class="p-3" style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px;">
+                                <div style="font-size: 11px; font-weight: 600; color: #1E40AF; text-transform: uppercase;">Latest Measurement</div>
+                                <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary-blue); margin-top: 2px;">${latestVal || '-'} <span style="font-size: 11px; font-weight: normal;">${g.unit || ''}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Progress History Entries -->
+                        <div>
+                            <h5 style="font-size: 12.5px; color: var(--navy); margin: 0 0 0.5rem 0;">Measurement History:</h5>
+                            ${entries.length > 0 ? `
+                                <div class="table-responsive" style="border: 1px solid var(--border); border-radius: 8px;">
+                                    <table class="data-table" style="font-size: 12.5px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Recorded Value</th>
+                                                <th>Physician Observation Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${entries.map(e => `
+                                                <tr>
+                                                    <td style="font-weight: 600; color: var(--navy);">${e.recordedDate}</td>
+                                                    <td style="font-weight: 700; color: var(--primary-blue);">${e.value} ${g.unit || ''}</td>
+                                                    <td style="color: var(--text-secondary);">${e.notes || '-'}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ` : '<p style="font-size: 12px; color: var(--text-muted); margin: 0;">No subsequent readings recorded yet.</p>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCreateGoalModal() {
+            document.getElementById('create-goal-modal').classList.add('open');
+        }
+
+        function closeCreateGoalModal() {
+            document.getElementById('create-goal-modal').classList.remove('open');
+        }
+
+        function openLogProgressModal(goalId) {
+            document.getElementById('log-goal-id').value = goalId;
+            document.getElementById('log-val-in').value = '';
+            document.getElementById('log-notes-in').value = '';
+            document.getElementById('log-progress-modal').classList.add('open');
+        }
+
+        function closeLogProgressModal() {
+            document.getElementById('log-progress-modal').classList.remove('open');
+        }
+
+        document.getElementById('create-goal-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-goal');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const payload = {
+                title: document.getElementById('goal-title-in').value.trim(),
+                metricName: document.getElementById('goal-metric-in').value.trim(),
+                unit: document.getElementById('goal-unit-in').value.trim(),
+                baselineValue: document.getElementById('goal-base-in').value.trim(),
+                targetValue: document.getElementById('goal-target-in').value.trim(),
+                notes: document.getElementById('goal-notes-in').value.trim(),
+                status: 'IN_PROGRESS'
+            };
+
+            try {
+                await window.api.createDoctorTreatmentGoal(currentPatientId, payload);
+                window.toast.success('Treatment goal created successfully!');
+                closeCreateGoalModal();
+                document.getElementById('create-goal-form').reset();
+                loadTreatmentGoals(currentPatientId);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to create goal');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Treatment Goal';
+            }
+        });
+
+        document.getElementById('log-progress-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const goalId = parseInt(document.getElementById('log-goal-id').value);
+            const btn = document.getElementById('btn-save-progress');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const payload = {
+                value: document.getElementById('log-val-in').value.trim(),
+                status: document.getElementById('log-status-select').value,
+                notes: document.getElementById('log-notes-in').value.trim()
+            };
+
+            try {
+                await window.api.addDoctorTreatmentProgress(goalId, payload);
+                window.toast.success('Measurement logged successfully!');
+                closeLogProgressModal();
+                loadTreatmentGoals(currentPatientId);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to log measurement');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Measurement';
+            }
+        });
+    </script>
+</body>
+</html>

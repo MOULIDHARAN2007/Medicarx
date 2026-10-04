@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management — MediCareX Pharmacy</title>
+    <meta name="description" content="Complete pharmaceutical inventory management with batch tracking, stock adjustments, clear stock, and medicine removal.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .inv-header-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn-danger-outline {
+            border: 1px solid #fca5a5;
+            color: #dc2626;
+            background: #fff;
+        }
+        .btn-danger-outline:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #b91c1c;
+        }
+        .btn-warning-outline {
+            border: 1px solid #fcd34d;
+            color: #d97706;
+            background: #fff;
+        }
+        .btn-warning-outline:hover {
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #b45309;
+        }
+        @media (max-width: 768px) {
+            .inv-header-actions {
+                width: 100%;
+                margin-top: 0.75rem;
+            }
+            .inv-header-actions .btn {
+                flex: 1 1 calc(50% - 0.5rem);
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            .inv-filter-row {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+            }
+            .inv-search-box {
+                width: 100% !important;
+            }
+            .inv-selects-box {
+                width: 100% !important;
+                display: flex;
+                gap: 0.5rem;
+            }
+            .inv-selects-box select {
+                flex: 1;
+                width: 50% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header" style="align-items: flex-start;">
+                    <div>
+                        <h1 class="page-title">Inventory Management</h1>
+                        <p class="page-subtitle">Manage store stock levels, batch numbers, pricing, and availability</p>
+                    </div>
+
+                    <div class="inv-header-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="loadInventory()" title="Refresh Inventory" id="btn-refresh-inv">
+                            🔄 Refresh
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="downloadCsvTemplate()" title="Download sample CSV format">
+                            📄 Template
+                        </button>
+                        <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;" onchange="handleCsvFileSelected(event)" />
+                        <button class="btn btn-secondary btn-sm" id="btn-import-csv" onclick="document.getElementById('csv-file-input').click()">
+                            📥 Import CSV
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                            + Add Medicine
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CSV Progress Banner -->
+                <div id="csv-progress-banner" style="display: none; padding: 1.25rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-lg); margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
+                    <div class="flex items-center gap-3">
+                        <div class="spinner" style="width: 26px; height: 26px; border: 3px solid #bfdbfe; border-top-color: var(--primary-blue); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                        <div style="flex: 1;">
+                            <strong style="color: #1e40af; font-size: 15px; display: block;" id="csv-progress-title">Importing Inventory CSV...</strong>
+                            <div style="font-size: 13px; color: #3b82f6; margin-top: 2px;" id="csv-progress-details">Reading file and updating MySQL database records...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CSV Summary Banner -->
+                <div id="csv-summary-banner" style="display: none; padding: 1.25rem; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-lg); margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start gap-3" style="flex: 1;">
+                            <span style="font-size: 1.75rem;" id="csv-summary-icon">📊</span>
+                            <div style="flex: 1;">
+                                <strong style="color: var(--navy); font-size: 15px; display: block;" id="csv-summary-title">CSV IMPORT COMPLETE</strong>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;" id="csv-summary-details">Processed records and updated stock quantities.</div>
+                                <div id="csv-summary-stats" class="flex gap-2" style="margin-top: 0.5rem; flex-wrap: wrap;"></div>
+                                <div id="csv-summary-errors-wrapper" style="display: none; margin-top: 0.75rem;">
+                                    <button class="btn btn-sm btn-outline" id="btn-toggle-errors" style="font-size: 12px; margin-bottom: 0.5rem;" onclick="toggleFailedRows()">View Failed Rows</button>
+                                    <div id="csv-summary-errors" style="display: none; max-height: 160px; overflow-y: auto; background: #fff1f2; border: 1px solid #fecdd3; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 12px; color: #9f1239;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('csv-summary-banner').style.display='none'">Dismiss</button>
+                    </div>
+                </div>
+
+                <!-- Filters, Search & Bulk Operations Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center inv-filter-row" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search inv-search-box" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="inv-search-input" placeholder="Search by medicine, generic, or batch..." oninput="loadInventory()" />
+                        </div>
+
+                        <div class="flex items-center gap-3 inv-selects-box">
+                            <select id="inv-cat-select" class="form-select" style="width: auto;" onchange="loadInventory()">
+                                <option value="All">All Categories</option>
+                                <option value="Antibiotics">Antibiotics</option>
+                                <option value="Pain Relief">Pain Relief</option>
+                                <option value="Diabetes">Diabetes</option>
+                                <option value="Cardiology">Cardiology</option>
+                                <option value="Allergy">Allergy</option>
+                                <option value="Gastroenterology">Gastroenterology</option>
+                            </select>
+
+                            <select id="inv-status-select" class="form-select" style="width: auto;" onchange="loadInventory()">
+                                <option value="All">All Statuses</option>
+                                <option value="In Stock">In Stock</option>
+                                <option value="Low Stock">Low Stock</option>
+                                <option value="Out of Stock">Out of Stock</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2" style="margin-left: auto;">
+                            <button class="btn btn-warning-outline btn-sm" onclick="openClearAllModal()" title="Set all inventory stock to 0">
+                                ⚠️ Clear All Stock
+                            </button>
+                            <button class="btn btn-danger-outline btn-sm" onclick="openRemoveAllModal()" title="Remove all items from your inventory">
+                                🗑 Remove All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Medicine</th>
+                                    <th>Category</th>
+                                    <th>Batch #</th>
+                                    <th>Stock Level</th>
+                                    <th>Unit Price</th>
+                                    <th>Expiry</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-tbody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading inventory records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Inventory Modal -->
+    <div class="modal-overlay" id="inv-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);" id="inv-modal-title">Add Medicine to Store Inventory</h3>
+                <button class="btn-icon" onclick="closeInvModal()">✕</button>
+            </div>
+            <form id="inv-form">
+                <input type="hidden" id="inv-item-id" />
+                <div class="modal-body">
+                    <div class="form-group" id="inv-med-select-group">
+                        <label class="form-label" for="inv-med-select">Select Medicine (from Global Catalog)</label>
+                        <select id="inv-med-select" class="form-select">
+                            <!-- Populated from medicines catalog -->
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px; display: block;">
+                            If this medicine is already in your inventory, existing stock will be updated without duplicate records.
+                        </small>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="inv-batch-input">Batch Number</label>
+                            <input type="text" id="inv-batch-input" class="form-input" placeholder="e.g. BATCH-101" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="inv-qty-input">Stock Quantity</label>
+                            <input type="number" id="inv-qty-input" class="form-input" min="0" value="50" required />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="inv-price-input">Unit Price (₹)</label>
+                            <input type="number" id="inv-price-input" class="form-input" step="0.5" min="0" value="85.50" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="inv-expiry-input">Expiry Date</label>
+                            <input type="date" id="inv-expiry-input" class="form-input" value="2028-12-31" required />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeInvModal()">Cancel</button>
+                    <button type="submit" id="btn-save-inv" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Clear Stock Confirmation Modal -->
+    <div class="modal-overlay" id="clear-stock-modal">
+        <div class="modal-container" style="max-width: 460px;">
+            <div class="modal-header" style="border-bottom-color: #fef3c7;">
+                <h3 style="color: #92400e; display: flex; align-items: center; gap: 8px;">
+                    <span>⚠️</span> Clear Medicine Stock
+                </h3>
+                <button class="btn-icon" onclick="closeClearStockModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    This will set the current stock of <strong id="clear-stock-med-name" style="color: var(--primary-blue);">Medicine</strong> to <strong>0</strong>.
+                </p>
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: #78350f;">
+                    ℹ️ The medicine and its pricing, batch number, and expiry date will remain in your inventory with status <strong>"Out of Stock"</strong>.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeClearStockModal()">Cancel</button>
+                <button type="button" id="btn-confirm-clear-stock" class="btn btn-warning" style="background: #f59e0b; color: white; border: none;" onclick="confirmClearStock()">
+                    Clear Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Medicine Confirmation Modal -->
+    <div class="modal-overlay" id="remove-med-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #fee2e2;">
+                <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                    <span>🗑</span> Remove Medicine from Inventory?
+                </h3>
+                <button class="btn-icon" onclick="closeRemoveMedModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Are you sure you want to remove <strong id="remove-med-name" style="color: #dc2626;">Medicine</strong> from your pharmacy inventory?
+                </p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: var(--text-secondary);">
+                    🛡 <strong>Safety Assurance:</strong> Removing this item only removes the record from your pharmacy's store. It will <strong>NOT</strong> delete the global medicine catalog entry, prescriptions, or records of other pharmacies.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRemoveMedModal()">Cancel</button>
+                <button type="button" id="btn-confirm-remove-med" class="btn btn-danger" style="background: #ef4444; color: white; border: none;" onclick="confirmRemoveMed()">
+                    Remove Medicine
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear All Stock Confirmation Modal -->
+    <div class="modal-overlay" id="clear-all-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #fef3c7;">
+                <h3 style="color: #92400e; display: flex; align-items: center; gap: 8px;">
+                    <span>⚠️</span> Clear All Inventory Stock?
+                </h3>
+                <button class="btn-icon" onclick="closeClearAllModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Are you sure you want to set stock to <strong>0</strong> for <strong>ALL</strong> medicines in your inventory?
+                </p>
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: #78350f;">
+                    ℹ️ All items will be marked as <strong>"Out of Stock"</strong>. All medicine records, prices, and batch data will remain intact in your inventory.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeClearAllModal()">Cancel</button>
+                <button type="button" id="btn-confirm-clear-all" class="btn btn-warning" style="background: #f59e0b; color: white; border: none;" onclick="confirmClearAllStock()">
+                    Clear All Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove All Medicines Confirmation Modal -->
+    <div class="modal-overlay" id="remove-all-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #fee2e2;">
+                <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                    <span>🚨</span> Remove All Medicines?
+                </h3>
+                <button class="btn-icon" onclick="closeRemoveAllModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    This will remove <strong>all medicines</strong> from your pharmacy inventory. <strong>This action cannot be undone.</strong>
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecdd3; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: #991b1b;">
+                    🛡 Note: Global catalog medicine records are preserved and will not be affected.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRemoveAllModal()">Cancel</button>
+                <button type="button" id="btn-confirm-remove-all" class="btn btn-danger" style="background: #ef4444; color: white; border: none;" onclick="confirmRemoveAllMedicines()">
+                    Yes, Remove All Medicines
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let inventoryList = [];
+        let itemToClear = null;
+        let itemToRemove = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.Shell.init('pharmacy-inventory');
+            await loadMedicinesCatalog();
+            loadInventory();
+        });
+
+        async function loadMedicinesCatalog() {
+            try {
+                const res = await window.api.getMedicines({ limit: 100 });
+                const select = document.getElementById('inv-med-select');
+                if (res.data) {
+                    select.innerHTML = res.data.map(m => `<option value="${m.id}">${escapeHtml(m.name)} (${escapeHtml(m.dosage)}) • ${escapeHtml(m.category)}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Error loading medicines catalog:', e);
+            }
+        }
+
+        async function loadInventory() {
+            const tbody = document.getElementById('inventory-tbody');
+            const search = document.getElementById('inv-search-input').value.trim();
+            const category = document.getElementById('inv-cat-select').value;
+            const status = document.getElementById('inv-status-select').value;
+
+            try {
+                const res = await window.api.getInventory({
+                    q: search,
+                    category: category,
+                    status: status
+                });
+
+                inventoryList = res.data || [];
+                if (inventoryList.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="padding: 3rem; text-align: center; color: var(--text-muted);">No inventory items matching filters. Click <strong>+ Add Medicine</strong> or <strong>Import CSV</strong> above.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = inventoryList.map(item => `
+                    <tr>
+                        <td>
+                            <strong style="font-size: 14px; color: var(--navy); display: block;">${escapeHtml(item.medicineName)}</strong>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${escapeHtml(item.genericName || '')} ${item.form ? '• ' + escapeHtml(item.form) : ''}</div>
+                        </td>
+                        <td><span class="badge badge-gray">${escapeHtml(item.category || 'General')}</span></td>
+                        <td style="font-family: monospace; font-size: 12px;">${escapeHtml(item.batchNumber || 'N/A')}</td>
+                        <td>
+                            <strong style="font-size: 14px; color: ${item.stockQuantity === 0 ? 'var(--danger)' : 'var(--navy)'};">${item.stockQuantity}</strong>
+                        </td>
+                        <td style="font-weight: 700; color: var(--navy);">₹${Number(item.unitPrice || 0).toFixed(2)}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(item.expiryDate || 'N/A')}</td>
+                        <td>
+                            <span class="badge ${item.status === 'In Stock' ? 'badge-success' : (item.status === 'Low Stock' ? 'badge-warning' : 'badge-danger')}">
+                                <span class="badge-dot"></span>
+                                ${escapeHtml(item.status || (item.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'))}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div class="flex gap-2" style="justify-content: flex-end;">
+                                <button class="btn btn-sm btn-secondary" onclick="openEditModal(${item.id})">Edit</button>
+                                <button class="btn btn-sm btn-warning-outline" onclick="openClearStockModal(${item.id})" title="Set stock to 0">Clear</button>
+                                <button class="btn btn-sm btn-danger-outline" onclick="openRemoveMedModal(${item.id})" title="Remove from store inventory">Remove</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        // Add / Edit Modal Handlers
+        function openAddModal() {
+            document.getElementById('inv-item-id').value = '';
+            document.getElementById('inv-modal-title').innerText = 'Add Medicine to Store Inventory';
+            document.getElementById('inv-med-select-group').style.display = 'block';
+            document.getElementById('inv-batch-input').value = `BATCH-${Math.floor(Math.random()*900+100)}`;
+            document.getElementById('inv-qty-input').value = '50';
+            document.getElementById('inv-price-input').value = '85.50';
+            document.getElementById('inv-expiry-input').value = '2028-12-31';
+            document.getElementById('inv-modal').classList.add('open');
+        }
+
+        function openEditModal(id) {
+            const item = inventoryList.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('inv-item-id').value = item.id;
+            document.getElementById('inv-modal-title').innerText = `Edit ${item.medicineName}`;
+            document.getElementById('inv-med-select-group').style.display = 'none';
+            document.getElementById('inv-batch-input').value = item.batchNumber || '';
+            document.getElementById('inv-qty-input').value = item.stockQuantity;
+            document.getElementById('inv-price-input').value = item.unitPrice;
+            document.getElementById('inv-expiry-input').value = item.expiryDate || '';
+            document.getElementById('inv-modal').classList.add('open');
+        }
+
+        function closeInvModal() {
+            document.getElementById('inv-modal').classList.remove('open');
+        }
+
+        document.getElementById('inv-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const itemId = document.getElementById('inv-item-id').value;
+            const medId = parseInt(document.getElementById('inv-med-select').value);
+            const batch = document.getElementById('inv-batch-input').value.trim();
+            const qty = parseInt(document.getElementById('inv-qty-input').value);
+            const price = parseFloat(document.getElementById('inv-price-input').value);
+            const expiry = document.getElementById('inv-expiry-input').value;
+
+            if (isNaN(qty) || qty < 0) {
+                window.toast.warning('Stock quantity cannot be negative.');
+                return;
+            }
+
+            if (isNaN(price) || price < 0) {
+                window.toast.warning('Unit price cannot be negative.');
+                return;
+            }
+
+            if (!batch) {
+                window.toast.warning('Batch number is required.');
+                return;
+            }
+
+            if (!expiry) {
+                window.toast.warning('Expiry date is required.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-save-inv');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            try {
+                if (itemId) {
+                    await window.api.updateInventoryMedicine(itemId, { stockQuantity: qty, unitPrice: price, expiryDate: expiry, batchNumber: batch });
+                    window.toast.success('Inventory record updated successfully!');
+                } else {
+                    await window.api.addStock({ medicineId: medId, batchNumber: batch, stockQuantity: qty, unitPrice: price, expiryDate: expiry });
+                    window.toast.success('Medicine added to store inventory!');
+                }
+                closeInvModal();
+                loadInventory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to save inventory');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Changes';
+            }
+        });
+
+        // Clear Stock Handlers
+        function openClearStockModal(id) {
+            const item = inventoryList.find(i => i.id === id);
+            if (!item) return;
+            itemToClear = item;
+            document.getElementById('clear-stock-med-name').innerText = item.medicineName;
+            document.getElementById('clear-stock-modal').classList.add('open');
+        }
+
+        function closeClearStockModal() {
+            document.getElementById('clear-stock-modal').classList.remove('open');
+            itemToClear = null;
+        }
+
+        async function confirmClearStock() {
+            if (!itemToClear) return;
+            const btn = document.getElementById('btn-confirm-clear-stock');
+            btn.disabled = true;
+            btn.innerText = 'Clearing...';
+
+            try {
+                await window.api.clearInventoryStock(itemToClear.id);
+                window.toast.success(`Stock for ${itemToClear.medicineName} cleared to 0.`);
+                closeClearStockModal();
+                loadInventory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to clear stock');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Clear Stock';
+            }
+        }
+
+        // Remove Medicine Handlers
+        function openRemoveMedModal(id) {
+            const item = inventoryList.find(i => i.id === id);
+            if (!item) return;
+            itemToRemove = item;
+            document.getElementById('remove-med-name').innerText = item.medicineName;
+            document.getElementById('remove-med-modal').classList.add('open');
+        }
+
+        function closeRemoveMedModal() {
+            document.getElementById('remove-med-modal').classList.remove('open');
+            itemToRemove = null;
+        }
+
+        async function confirmRemoveMed() {
+            if (!itemToRemove) return;
+            const btn = document.getElementById('btn-confirm-remove-med');
+            btn.disabled = true;
+            btn.innerText = 'Removing...';
+
+            try {
+                await window.api.removeInventoryMedicine(itemToRemove.id);
+                window.toast.success(`${itemToRemove.medicineName} removed from your inventory.`);
+                closeRemoveMedModal();
+                loadInventory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to remove medicine');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Remove Medicine';
+            }
+        }
+
+        // Bulk Operations Handlers
+        function openClearAllModal() {
+            document.getElementById('clear-all-modal').classList.add('open');
+        }
+
+        function closeClearAllModal() {
+            document.getElementById('clear-all-modal').classList.remove('open');
+        }
+
+        async function confirmClearAllStock() {
+            const btn = document.getElementById('btn-confirm-clear-all');
+            btn.disabled = true;
+            btn.innerText = 'Clearing All...';
+
+            try {
+                const res = await window.api.clearAllInventoryStock();
+                window.toast.success(res.message || 'All inventory stock has been set to 0.');
+                closeClearAllModal();
+                loadInventory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to clear all stock');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Clear All Stock';
+            }
+        }
+
+        function openRemoveAllModal() {
+            document.getElementById('remove-all-modal').classList.add('open');
+        }
+
+        function closeRemoveAllModal() {
+            document.getElementById('remove-all-modal').classList.remove('open');
+        }
+
+        async function confirmRemoveAllMedicines() {
+            const btn = document.getElementById('btn-confirm-remove-all');
+            btn.disabled = true;
+            btn.innerText = 'Removing All...';
+
+            try {
+                const res = await window.api.removeAllInventoryMedicines();
+                window.toast.success(res.message || 'All medicines removed from store inventory.');
+                closeRemoveAllModal();
+                loadInventory();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to remove all medicines');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Yes, Remove All Medicines';
+            }
+        }
+
+        // CSV Template Download
+        function downloadCsvTemplate() {
+            const csvContent = "medicine_name,stock_quantity,unit_price,batch_number,expiry_date,category\n" +
+                "Paracetamol 650mg,100,3.50,PCM-2026-002,2028-09-30,Pain Relief\n" +
+                "Amoxicillin 500mg,50,8.50,AMX-2026-001,2028-06-30,Antibiotics\n" +
+                "Cetirizine 10mg,75,2.80,CET-2026-006,2028-08-31,Allergy\n";
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'medicarex_inventory_template.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            window.toast.success('Downloaded CSV template');
+        }
+
+        // CSV File Import Handling
+        async function handleCsvFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const progressBanner = document.getElementById('csv-progress-banner');
+            const summaryBanner = document.getElementById('csv-summary-banner');
+            const progressTitle = document.getElementById('csv-progress-title');
+            const progressDetails = document.getElementById('csv-progress-details');
+
+            summaryBanner.style.display = 'none';
+            progressTitle.innerText = `Importing ${file.name}...`;
+            progressDetails.innerText = `Reading file (${(file.size / 1024).toFixed(1)} KB) and validating stock records...`;
+            progressBanner.style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const text = e.target.result;
+                if (!text || text.trim().length === 0) {
+                    progressBanner.style.display = 'none';
+                    window.toast.error('The selected CSV file is empty.');
+                    return;
+                }
+
+                progressDetails.innerText = 'Matching medicines against catalog and persisting inventory to database...';
+
+                try {
+                    const res = await window.api.importInventoryCsv({ csv: text });
+                    const s = res.data || {};
+                    progressBanner.style.display = 'none';
+
+                    const total = s.totalProcessed || s.totalRows || 0;
+                    const imported = s.imported || 0;
+                    const uniqueMedicines = s.uniqueMedicines || s.distinctMedicines || 0;
+                    const medicinesCreated = s.medicinesCreated || 0;
+                    const medicinesMatched = s.medicinesMatched || 0;
+                    const added = s.inventoryAdded || s.added || 0;
+                    const updated = s.inventoryUpdated || s.updated || 0;
+                    const failed = s.failed || 0;
+                    const errors = s.errors || [];
+
+                    const title = document.getElementById('csv-summary-title');
+                    const details = document.getElementById('csv-summary-details');
+                    const stats = document.getElementById('csv-summary-stats');
+                    const errorsWrapper = document.getElementById('csv-summary-errors-wrapper');
+                    const errorsBox = document.getElementById('csv-summary-errors');
+                    const toggleBtn = document.getElementById('btn-toggle-errors');
+
+                    title.innerText = `CSV IMPORT COMPLETE — ${file.name}`;
+                    details.innerText = `Rows processed: ${total.toLocaleString()} | Unique medicines: ${uniqueMedicines.toLocaleString()} | Medicines created: ${medicinesCreated.toLocaleString()} | Medicines matched: ${medicinesMatched.toLocaleString()} | Inventory added: ${added.toLocaleString()} | Inventory updated: ${updated.toLocaleString()} | Failed: ${failed.toLocaleString()}`;
+
+                    stats.innerHTML = `
+                        <span class="badge badge-primary">Rows Processed: ${total.toLocaleString()}</span>
+                        <span class="badge badge-success">Unique Medicines: ${uniqueMedicines.toLocaleString()}</span>
+                        <span class="badge badge-info" style="background:#f0fdf4; color:#15803d;">Catalog Created: ${medicinesCreated.toLocaleString()}</span>
+                        <span class="badge badge-info" style="background:#e0f2fe; color:#0369a1;">Catalog Matched: ${medicinesMatched.toLocaleString()}</span>
+                        <span class="badge badge-info" style="background:#fef3c7; color:#92400e;">Inventory Added: ${added.toLocaleString()}</span>
+                        <span class="badge badge-info" style="background:#ede9fe; color:#5b21b6;">Inventory Updated: ${updated.toLocaleString()}</span>
+                        ${failed > 0 ? `<span class="badge badge-danger">Failed: ${failed.toLocaleString()}</span>` : ''}
+                    `;
+
+                    if (errors && errors.length > 0) {
+                        errorsWrapper.style.display = 'block';
+                        toggleBtn.innerText = `View Failed Rows (${errors.length})`;
+                        errorsBox.style.display = 'none';
+                        errorsBox.innerHTML = `<strong>Failure Breakdown (${errors.length} rows):</strong><ul style="margin: 4px 0 0 16px; padding: 0;">` +
+                            errors.map(err => `<li>${escapeHtml(err)}</li>`).join('') +
+                            `</ul>`;
+                    } else {
+                        errorsWrapper.style.display = 'none';
+                    }
+
+                    summaryBanner.style.display = 'block';
+
+                    if (failed === 0) {
+                        window.toast.success(`CSV Import Complete: All ${imported.toLocaleString()} rows imported successfully!`);
+                    } else {
+                        window.toast.warning(`CSV Import Complete: ${imported.toLocaleString()} imported, ${failed.toLocaleString()} failed validation.`);
+                    }
+
+                    loadInventory();
+
+                } catch (err) {
+                    progressBanner.style.display = 'none';
+                    window.toast.error(err.message || 'Error importing CSV inventory');
+                }
+            };
+
+            reader.onerror = function() {
+                progressBanner.style.display = 'none';
+                window.toast.error('Failed to read CSV file');
+            };
+
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function toggleFailedRows() {
+            const box = document.getElementById('csv-summary-errors');
+            const btn = document.getElementById('btn-toggle-errors');
+            if (box.style.display === 'none') {
+                box.style.display = 'block';
+                btn.innerText = btn.innerText.replace('View', 'Hide');
+            } else {
+                box.style.display = 'none';
+                btn.innerText = btn.innerText.replace('Hide', 'View');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

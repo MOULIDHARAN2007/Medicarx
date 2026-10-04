@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Records & Timeline — MediCareX</title>
+    <meta name="description" content="View and manage digital consultations, doctor prescriptions, lab test reports, and health insurance cards.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .timeline-container {
+            position: relative;
+            padding-left: 2.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background-color: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-node {
+            position: absolute;
+            left: -2.5rem;
+            top: 4px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 2px solid var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-blue);
+            font-size: 14px;
+            box-shadow: 0 0 0 4px var(--surface);
+            z-index: 2;
+        }
+
+        .timeline-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-fast);
+        }
+
+        .timeline-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Health Records & Clinical Timeline</h1>
+                        <p class="page-subtitle">Your comprehensive lifelong medical history, consultations, lab diagnostics, and documents</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="openUploadModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload Document
+                    </button>
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="filterCategory(this, 'All')">All Records</button>
+                    <button class="tab-btn" onclick="filterCategory(this, 'Consultations')">Consultations</button>
+                    <button class="tab-btn" onclick="filterCategory(this, 'Prescriptions')">Prescriptions</button>
+                    <button class="tab-btn" onclick="filterCategory(this, 'Lab Reports')">Lab Reports</button>
+                    <button class="tab-btn" onclick="filterCategory(this, 'Documents')">Insurance & Documents</button>
+                </div>
+
+                <!-- Timeline Feed -->
+                <div class="card" style="padding: 2rem;">
+                    <div class="timeline-container" id="timeline-box">
+                        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading health timeline...</div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Upload Document Modal -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Upload Health Record</h3>
+                <button class="btn-icon" onclick="closeUploadModal()">✕</button>
+            </div>
+            <form id="upload-record-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="rec-title">Record Title</label>
+                        <input type="text" id="rec-title" class="form-input" placeholder="e.g. Annual Blood Panel & Thyroid Report" required />
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="rec-type">Record Category</label>
+                            <select id="rec-type" class="form-select">
+                                <option value="Lab Reports">Lab Reports</option>
+                                <option value="Consultations">Consultations</option>
+                                <option value="Prescriptions">Prescriptions</option>
+                                <option value="Documents">Insurance / Documents</option>
+                            </select>
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="rec-date">Record Date</label>
+                            <input type="date" id="rec-date" class="form-input" value="2026-09-01" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rec-provider">Healthcare Provider / Clinic</label>
+                        <input type="text" id="rec-provider" class="form-input" placeholder="e.g. Manipal Hospital, Bangalore" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rec-desc">Clinical Summary / Doctor Notes</label>
+                        <textarea id="rec-desc" class="form-textarea" rows="3" placeholder="Key vitals, diagnosis highlights, or doctor instructions..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Attach PDF / Diagnostic Scan</label>
+                        <input type="file" class="form-input" accept=".pdf,.png,.jpg" />
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">Cancel</button>
+                    <button type="submit" id="btn-save-record" class="btn btn-primary">Save to Timeline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentRecordCategory = 'All';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('records');
+            loadRecords();
+        });
+
+        function filterCategory(btn, category) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentRecordCategory = category;
+            loadRecords();
+        }
+
+        async function loadRecords() {
+            const container = document.getElementById('timeline-box');
+            try {
+                const res = await window.api.getHealthRecords({ category: currentRecordCategory });
+                const records = res.data || [];
+
+                if (records.length === 0) {
+                    container.innerHTML = `
+                        <div style="padding: 3rem; text-align: center;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
+                            <h4 style="color: var(--navy);">No records in this category</h4>
+                            <p style="font-size: 13px; color: var(--text-secondary);">Click "Upload Document" to add your diagnostic reports.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = records.map(r => {
+                    const icon = r.recordType === 'Consultations' ? '🩺' 
+                               : (r.recordType === 'Prescriptions' ? '💊' 
+                               : (r.recordType === 'Lab Reports' ? '🧪' : '📑'));
+
+                    return `
+                        <div class="timeline-item">
+                            <div class="timeline-node">${icon}</div>
+                            <div class="timeline-card">
+                                <div class="flex items-start justify-between" style="margin-bottom: 0.5rem;">
+                                    <div>
+                                        <span class="badge ${r.recordType === 'Lab Reports' ? 'badge-purple' : 'badge-blue'}" style="margin-bottom: 0.35rem;">${r.recordType}</span>
+                                        <h3 style="font-size: 1.1rem; color: var(--navy); font-weight: 700;">${r.title}</h3>
+                                        <div style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Provider: <strong style="color: var(--navy);">${r.providerName}</strong></div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--navy);">${r.recordDate}</div>
+                                        <span style="font-size: 11px; color: var(--text-muted);">${r.fileSize}</span>
+                                    </div>
+                                </div>
+
+                                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin: 0.75rem 0;">
+                                    ${r.description || 'Verified clinical documentation.'}
+                                </p>
+
+                                <div class="flex justify-between items-center" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                                    <div style="font-size: 12px; color: var(--primary-blue); font-weight: 500;">
+                                        📎 ${r.documentUrl}
+                                    </div>
+                                    <button class="btn btn-sm btn-outline" onclick="downloadRecordPdf(${r.id}, '${r.title ? r.title.replace(/'/g, "\\'") : 'HealthRecord'}')">
+                                        View / Download Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</div>`;
+            }
+        }
+
+        function openUploadModal() {
+            document.getElementById('upload-modal').classList.add('open');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.remove('open');
+        }
+
+        document.getElementById('upload-record-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('rec-title').value.trim();
+            const recordType = document.getElementById('rec-type').value;
+            const recordDate = document.getElementById('rec-date').value;
+            const providerName = document.getElementById('rec-provider').value.trim();
+            const description = document.getElementById('rec-desc').value.trim();
+
+            try {
+                await window.api.createHealthRecord({ title, recordType, recordDate, providerName, description, documentUrl: `${title.toLowerCase().replace(/\s+/g, '_')}.pdf`, fileSize: '1.4 MB' });
+                window.toast.success('Health record saved to timeline!');
+                closeUploadModal();
+                loadRecords();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        });
+
+        async function downloadRecordPdf(id, title) {
+            try {
+                window.toast.info('Downloading official medical report PDF...');
+                const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`;
+                await window.api.downloadHealthRecord(id, filename);
+                window.toast.success('Downloaded report successfully!');
+            } catch (err) {
+                console.error(err);
+                window.toast.error(err.message || 'Failed to download report');
+            }
+        }
+    </script>
+</body>
+</html>

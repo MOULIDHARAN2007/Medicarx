@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile — MediCareX</title>
+    <meta name="description" content="View and manage your personal healthcare profile, practitioner license details, and contact information.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">User Profile</h1>
+                        <p class="page-subtitle">Manage your verified healthcare credentials and contact details</p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="loadUserProfile()">Reset</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('profile-form').requestSubmit()">Save Changes</button>
+                    </div>
+                </div>
+
+                <!-- Profile Hero Card -->
+                <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
+                    <div class="flex items-center gap-6" style="flex-wrap: wrap;">
+                        <div style="position: relative;">
+                            <img id="prof-avatar-img" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" alt="Avatar" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary-blue-subtle); box-shadow: var(--shadow-sm);" />
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-3">
+                                <h2 style="font-size: 1.5rem; color: var(--navy); font-weight: 800;" id="prof-header-name">Loading...</h2>
+                                <span class="badge badge-blue" id="prof-header-role">PATIENT</span>
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary);" id="prof-header-email">user@example.com</div>
+                            <div style="font-size: 12px; color: var(--text-muted);" id="prof-header-extra">Indiranagar, Bangalore</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Edit Form -->
+                <form id="profile-form">
+                    <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
+                        <h3 style="font-size: 1.15rem; color: var(--navy); margin-bottom: 1.25rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+                            Basic Information
+                        </h3>
+
+                        <div class="flex gap-4">
+                            <div class="form-group w-full">
+                                <label class="form-label" for="prof-fullname">Full Name</label>
+                                <input type="text" id="prof-fullname" class="form-input" required />
+                            </div>
+                            <div class="form-group w-full">
+                                <label class="form-label" for="prof-email">Email Address (Read-only)</label>
+                                <input type="email" id="prof-email" class="form-input" readonly style="background: #f8fafc; color: var(--text-muted);" />
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="form-group w-full">
+                                <label class="form-label" for="prof-phone">Contact Phone Number</label>
+                                <input type="tel" id="prof-phone" class="form-input" required />
+                            </div>
+                            <div class="form-group w-full">
+                                <label class="form-label" for="prof-avatar-url">Avatar Image URL</label>
+                                <input type="url" id="prof-avatar-url" class="form-input" />
+                            </div>
+                        </div>
+
+                        <!-- Role Specific Dynamic Fields -->
+                        <div id="patient-specific-fields" style="display: none;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); margin: 1.5rem 0 1.25rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+                                Clinical & Patient Information
+                            </h3>
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pat-dob">Date of Birth</label>
+                                    <input type="date" id="pat-dob" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pat-gender">Gender</label>
+                                    <select id="pat-gender" class="form-select">
+                                        <option value="Female">Female</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pat-blood">Blood Group</label>
+                                    <select id="pat-blood" class="form-select">
+                                        <option value="A+">A+</option>
+                                        <option value="A-">A-</option>
+                                        <option value="B+">B+</option>
+                                        <option value="B-">B-</option>
+                                        <option value="O+">O+</option>
+                                        <option value="O-">O-</option>
+                                        <option value="AB+">AB+</option>
+                                        <option value="AB-">AB-</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="pat-address">Residential Address</label>
+                                <input type="text" id="pat-address" class="form-input" />
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pat-emergency">Emergency Contact</label>
+                                    <input type="text" id="pat-emergency" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pat-insurance">Insurance Provider / Policy</label>
+                                    <input type="text" id="pat-insurance" class="form-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="doctor-specific-fields" style="display: none;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); margin: 1.5rem 0 1.25rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+                                Medical Practice & Licensing
+                            </h3>
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="doc-spec">Specialization</label>
+                                    <input type="text" id="doc-spec" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="doc-lic">Medical Council Registration #</label>
+                                    <input type="text" id="doc-lic" class="form-input" />
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="doc-hosp">Hospital / Clinic Affiliation</label>
+                                    <input type="text" id="doc-hosp" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="doc-fee">Consultation Fee (₹)</label>
+                                    <input type="number" id="doc-fee" class="form-input" step="50" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="pharmacy-specific-fields" style="display: none;">
+                            <h3 style="font-size: 1.15rem; color: var(--navy); margin: 1.5rem 0 1.25rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+                                Pharmacy Store Information
+                            </h3>
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pharm-name">Pharmacy Registered Name</label>
+                                    <input type="text" id="pharm-name" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pharm-owner">Owner / Pharmacist in Charge</label>
+                                    <input type="text" id="pharm-owner" class="form-input" />
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pharm-addr">Store Street Address</label>
+                                    <input type="text" id="pharm-addr" class="form-input" />
+                                </div>
+                                <div class="form-group w-full">
+                                    <label class="form-label" for="pharm-city">City</label>
+                                    <input type="text" id="pharm-city" class="form-input" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button type="button" class="btn btn-secondary" onclick="loadUserProfile()">Discard Changes</button>
+                        <button type="submit" id="btn-save-profile" class="btn btn-primary">Save Profile</button>
+                    </div>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentRole = 'PATIENT';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('profile');
+            loadUserProfile();
+        });
+
+        async function loadUserProfile() {
+            try {
+                const res = await window.api.getUserProfile();
+                const u = res.data;
+                if (!u) return;
+
+                currentRole = (u.role || 'PATIENT').toUpperCase();
+
+                document.getElementById('prof-header-name').innerText = u.fullName;
+                document.getElementById('prof-header-email').innerText = u.email;
+                document.getElementById('prof-header-role').innerText = u.role;
+                if (u.avatarUrl) {
+                    document.getElementById('prof-avatar-img').src = u.avatarUrl;
+                    document.getElementById('prof-avatar-url').value = u.avatarUrl;
+                }
+
+                document.getElementById('prof-fullname').value = u.fullName || '';
+                document.getElementById('prof-email').value = u.email || '';
+                document.getElementById('prof-phone').value = u.phone || '';
+
+                if (currentRole === 'PATIENT') {
+                    document.getElementById('patient-specific-fields').style.display = 'block';
+                    document.getElementById('pat-dob').value = u.dob || '';
+                    document.getElementById('pat-gender').value = u.gender || 'Female';
+                    document.getElementById('pat-blood').value = u.bloodGroup || 'O+';
+                    document.getElementById('pat-address').value = u.address || '';
+                    document.getElementById('pat-emergency').value = u.emergencyContact || '';
+                    document.getElementById('pat-insurance').value = u.insuranceProvider || '';
+                    document.getElementById('prof-header-extra').innerText = `${u.gender || ''} • ${u.bloodGroup || ''} • ${u.address || ''}`;
+                } else if (currentRole === 'DOCTOR') {
+                    document.getElementById('doctor-specific-fields').style.display = 'block';
+                    document.getElementById('doc-spec').value = u.specialization || '';
+                    document.getElementById('doc-lic').value = u.licenseNumber || '';
+                    document.getElementById('doc-hosp').value = u.hospitalAffiliation || '';
+                    document.getElementById('doc-fee').value = u.consultationFee || 500;
+                    document.getElementById('prof-header-extra').innerText = `${u.specialization || 'Physician'} • ${u.hospitalAffiliation || ''}`;
+                } else if (currentRole === 'PHARMACY') {
+                    document.getElementById('pharmacy-specific-fields').style.display = 'block';
+                    document.getElementById('pharm-name').value = u.pharmacyName || '';
+                    document.getElementById('pharm-owner').value = u.ownerName || '';
+                    document.getElementById('pharm-addr').value = u.address || '';
+                    document.getElementById('pharm-city').value = u.city || '';
+                    document.getElementById('prof-header-extra').innerText = `${u.pharmacyName || ''} • ${u.address || ''}`;
+                }
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to load profile');
+            }
+        }
+
+        document.getElementById('profile-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-profile');
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
+            const payload = {
+                fullName: document.getElementById('prof-fullname').value.trim(),
+                phone: document.getElementById('prof-phone').value.trim(),
+                avatarUrl: document.getElementById('prof-avatar-url').value.trim()
+            };
+
+            if (currentRole === 'PATIENT') {
+                payload.dob = document.getElementById('pat-dob').value;
+                payload.gender = document.getElementById('pat-gender').value;
+                payload.bloodGroup = document.getElementById('pat-blood').value;
+                payload.address = document.getElementById('pat-address').value.trim();
+                payload.emergencyContact = document.getElementById('pat-emergency').value.trim();
+                payload.insuranceProvider = document.getElementById('pat-insurance').value.trim();
+            } else if (currentRole === 'DOCTOR') {
+                payload.specialization = document.getElementById('doc-spec').value.trim();
+                payload.licenseNumber = document.getElementById('doc-lic').value.trim();
+                payload.hospitalAffiliation = document.getElementById('doc-hosp').value.trim();
+                payload.consultationFee = parseFloat(document.getElementById('doc-fee').value);
+            } else if (currentRole === 'PHARMACY') {
+                payload.pharmacyName = document.getElementById('pharm-name').value.trim();
+                payload.ownerName = document.getElementById('pharm-owner').value.trim();
+                payload.address = document.getElementById('pharm-addr').value.trim();
+                payload.city = document.getElementById('pharm-city').value.trim();
+            }
+
+            try {
+                const res = await window.api.updateUserProfile(payload);
+                window.toast.success('Profile changes saved successfully!');
+                const u = window.api.getCurrentUser() || {};
+                u.fullName = payload.fullName;
+                u.phone = payload.phone;
+                if (payload.avatarUrl) u.avatarUrl = payload.avatarUrl;
+                window.api.setCurrentUser(u);
+                loadUserProfile();
+            } catch (err) {
+                window.toast.error(err.message || 'Error updating profile');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Profile';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Clinical Dashboard — MediCareX</title>
+    <meta name="description" content="Clinical practice management dashboard for appointments, patient health records, and digital prescriptions.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Welcome Banner -->
+                <div class="patient-welcome-card" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
+                    <div>
+                        <div class="welcome-title">Good morning, Dr. Arjun Kumar 🩺</div>
+                        <div class="welcome-subtext">You have 4 patient consultations scheduled for today at Manipal Hospital. Review digital health charts and issue prescriptions.</div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="btn btn-secondary btn-lg" onclick="window.EmergencyScanner.openScanner({ role: 'DOCTOR' })" style="background: rgba(255,255,255,0.15); color: #ffffff; border: 1px solid rgba(255,255,255,0.35); font-weight: 700;">
+                            📷 Scan Emergency QR
+                        </button>
+                        <button class="btn btn-primary btn-lg" onclick="openCreateRxModal()" style="background: var(--primary-blue); border: none;">
+                            + Create Prescription
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Statistics Cards -->
+                <div class="stats-grid-4">
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Today's Appointments</div>
+                            <div class="stat-value" id="doc-today-appts">4</div>
+                            <div style="font-size: 11px; color: var(--primary-blue); font-weight: 500;">Scheduled visits</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Total Patients</div>
+                            <div class="stat-value" id="doc-total-patients">148</div>
+                            <div style="font-size: 11px; color: var(--success); font-weight: 500;">+12 this month</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Pending Prescriptions</div>
+                            <div class="stat-value" id="doc-pending-rx">1</div>
+                            <div style="font-size: 11px; color: var(--warning); font-weight: 500;">Ready for verification</div>
+                        </div>
+                        <div class="stat-icon amber">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Follow-ups</div>
+                            <div class="stat-value" id="doc-follow-ups">8</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Scheduled this week</div>
+                        </div>
+                        <div class="stat-icon purple">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Today's Appointments & Recent Patients -->
+                <div class="dashboard-grid-2">
+                    <!-- Left: Today's Appointments Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--navy);">Today's Appointments</h3>
+                                <p style="font-size: 12px; color: var(--text-secondary);">Consultation queue for 06-Sep-2026</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline" onclick="window.toast.info('Calendar synced')">Sync Schedule</button>
+                        </div>
+                        <div class="table-responsive" style="border: none;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Patient Name</th>
+                                        <th>Consultation Type</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="doc-appts-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading appointments...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right: Quick Actions & Recent Patients -->
+                    <div class="flex flex-col gap-4">
+                        <div class="card" style="padding: 1.25rem;">
+                            <h4 style="color: var(--navy); margin-bottom: 0.75rem;">Clinical Quick Actions</h4>
+                            <div class="flex flex-col gap-2">
+                                <button class="btn btn-primary w-full justify-between" onclick="window.EmergencyScanner.openScanner({ role: 'DOCTOR' })" style="background: #dc2626; border-color: #dc2626; font-weight: 700;">
+                                    <span>🚨 Scan Patient Emergency QR</span>
+                                    <span>📷</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="window.location.href='/doctor-medicine-search.html'">
+                                    <span>🔍 Medicine Search & Formulary</span>
+                                    <span>→</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="window.location.href='/doctor-ai-support.html'">
+                                    <span>✨ AI Clinical Decision Support</span>
+                                    <span>→</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="window.location.href='/doctor-prescription-safety.html'">
+                                    <span>🛡️ Prescription Safety & Formulary</span>
+                                    <span>→</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="window.location.href='/doctor-patient-timeline.html'">
+                                    <span>📅 Patient Health Timeline</span>
+                                    <span>→</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="window.location.href='/doctor-treatment-progress.html'">
+                                    <span>📈 Treatment Progress Tracker</span>
+                                    <span>→</span>
+                                </button>
+                                <button class="btn btn-secondary w-full justify-between" onclick="openCreateRxModal()">
+                                    <span>℞ Issue New Digital Prescription</span>
+                                    <span>→</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 style="color: var(--navy);">Recent Patients</h4>
+                                <span style="font-size: 11px; color: var(--text-muted);">Indiranagar OPD</span>
+                            </div>
+                            <div id="doc-recent-patients-list" style="padding: 0.5rem;">
+                                <!-- Filled from API -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Prescription Modal -->
+    <div class="modal-overlay" id="create-rx-modal">
+        <div class="modal-container" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Issue Digital Prescription</h3>
+                <button class="btn-icon" onclick="closeCreateRxModal()">✕</button>
+            </div>
+            <form id="create-rx-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="rx-patient-select">Select Patient</label>
+                        <select id="rx-patient-select" class="form-select" required>
+                            <option value="" disabled selected>Loading patients...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rx-diag-input">Diagnosis</label>
+                        <input type="text" id="rx-diag-input" class="form-input" placeholder="e.g. Acute Pharyngitis, Viral Fever, Hypertension" value="" required />
+                    </div>
+
+                    <div class="form-group">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.5rem;">
+                            <label class="form-label" style="margin-bottom: 0;">Medications to Prescribe</label>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="addMedicationRow()" style="font-size: 11px; padding: 0.2rem 0.5rem;">+ Add Medicine</button>
+                        </div>
+                        <div id="rx-meds-builder" class="flex flex-col gap-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rx-notes-input">Physician Advisory & Instructions</label>
+                        <textarea id="rx-notes-input" class="form-textarea" rows="2" placeholder="e.g. Take medications after meals, maintain hydration, rest for 3 days."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateRxModal()">Cancel</button>
+                    <button type="submit" id="btn-issue-rx" class="btn btn-primary">Sign & Issue Prescription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/libs/html5-qrcode.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/emergency-scanner.js"></script>
+    <script>
+        let cachedPatientsList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-dashboard');
+            loadDoctorDashboard();
+
+            // Check if opened with pre-selected patient
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetPatientId = urlParams.get('patientId');
+            if (targetPatientId) {
+                setTimeout(() => openCreateRxModal(targetPatientId), 300);
+            }
+        });
+
+        async function loadDoctorDashboard() {
+            try {
+                const res = await window.api.getDoctorDashboard();
+                const data = res.data;
+                if (!data) return;
+
+                document.getElementById('doc-today-appts').innerText = data.todayAppointments != null ? data.todayAppointments : '0';
+                document.getElementById('doc-total-patients').innerText = data.totalPatients != null ? data.totalPatients : '0';
+                document.getElementById('doc-pending-rx').innerText = data.pendingPrescriptions != null ? data.pendingPrescriptions : '0';
+                document.getElementById('doc-follow-ups').innerText = data.followUps != null ? data.followUps : '0';
+
+                // Cache recent patients list
+                if (data.recentPatients && data.recentPatients.length > 0) {
+                    cachedPatientsList = data.recentPatients;
+                }
+
+                // Appointments Table
+                const tbody = document.getElementById('doc-appts-tbody');
+                const appts = data.appointments || [];
+                if (appts.length > 0) {
+                    tbody.innerHTML = appts.map(a => `
+                        <tr>
+                            <td style="font-weight: 700; color: var(--primary-blue);">${a.appointmentTime}</td>
+                            <td style="font-weight: 600; color: var(--navy);">${a.patientName}</td>
+                            <td style="font-size: 13px; color: var(--text-secondary);">${a.type}</td>
+                            <td>
+                                <span class="badge ${a.status === 'Confirmed' ? 'badge-success' : 'badge-warning'}">
+                                    <span class="badge-dot"></span>
+                                    ${a.status}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="flex gap-1">
+                                    <button class="btn btn-sm btn-primary" onclick="window.location.href='/doctor-patient-overview.html?patientId=${a.patientId || 1}'" style="padding: 0.25rem 0.6rem; font-size: 11px;">Overview</button>
+                                    <button class="btn btn-sm btn-outline" onclick="openCreateRxModal('${a.patientId || a.patientName}')" style="padding: 0.25rem 0.6rem; font-size: 11px;">Rx</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Recent Patients List
+                const patList = document.getElementById('doc-recent-patients-list');
+                const patients = data.recentPatients || [];
+                patList.innerHTML = patients.slice(0, 4).map(p => `
+                    <div class="flex items-center justify-between" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">
+                        <div class="flex items-center gap-3">
+                            <img src="${p.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" alt="Avatar" class="user-avatar-sm" style="width: 32px; height: 32px;" />
+                            <div class="flex flex-col">
+                                <span style="font-size: 13px; font-weight: 600; color: var(--navy);">${p.fullName || p.name}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${p.phone || '+91 98765 43210'}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-1">
+                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/doctor-patient-overview.html?patientId=${p.id || p.patientId}'" style="padding: 0.2rem 0.5rem; font-size: 11px;">Overview</button>
+                            <button class="btn btn-sm btn-icon" onclick="window.location.href='/records.html'" title="View Records">📂</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function populatePatientDropdown(targetPatientIdOrName) {
+            const select = document.getElementById('rx-patient-select');
+            if (!select) return;
+
+            // Fetch fresh list of patients if not cached
+            if (!cachedPatientsList || cachedPatientsList.length === 0) {
+                try {
+                    const res = await window.api.getDoctorPatients();
+                    cachedPatientsList = res.data || [];
+                } catch (e) {
+                    console.error('Error fetching patients for prescription dropdown:', e);
+                }
+            }
+
+            // Step 1: Clear existing options completely
+            select.innerHTML = '';
+
+            // Step 2: Deduplicate by unique patient ID using a Map
+            const uniquePatientsMap = new Map();
+            (cachedPatientsList || []).forEach(p => {
+                const pId = p.id != null ? p.id : p.patientId;
+                if (pId != null && !uniquePatientsMap.has(pId)) {
+                    uniquePatientsMap.set(pId, p);
+                }
+            });
+
+            const uniqueList = Array.from(uniquePatientsMap.values());
+
+            if (uniqueList.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "Select Patient...";
+                select.appendChild(opt);
+                return;
+            }
+
+            // Step 3: Create exactly one option per unique patient ID
+            uniqueList.forEach(p => {
+                const opt = document.createElement('option');
+                const pId = p.id != null ? p.id : p.patientId;
+                opt.value = pId;
+
+                const name = p.fullName || p.name || 'Patient';
+                const details = [];
+                if (p.gender) details.push(p.gender);
+                if (p.dob) {
+                    const birthYear = parseInt(p.dob.substring(0, 4));
+                    const curYear = new Date().getFullYear();
+                    if (!isNaN(birthYear) && curYear > birthYear) {
+                        details.push(`${curYear - birthYear} Yrs`);
+                    }
+                }
+                if (p.bloodGroup) details.push(p.bloodGroup);
+
+                opt.textContent = details.length > 0 ? `${name} (${details.join(', ')})` : name;
+                select.appendChild(opt);
+            });
+
+            // Step 4: If target patient specified, select it
+            if (targetPatientIdOrName != null) {
+                for (let i = 0; i < select.options.length; i++) {
+                    const opt = select.options[i];
+                    const pObj = uniquePatientsMap.get(parseInt(opt.value));
+                    if (opt.value == targetPatientIdOrName || 
+                        (pObj && (pObj.fullName === targetPatientIdOrName || pObj.name === targetPatientIdOrName))) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function renderDefaultMedicationRows() {
+            const builder = document.getElementById('rx-meds-builder');
+            if (!builder) return;
+            builder.innerHTML = `
+                <div class="flex gap-2 items-center rx-med-row">
+                    <input type="text" class="form-input rx-med-name" placeholder="Medicine Name (e.g. Amoxicillin 500mg)" value="" required />
+                    <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" value="" style="max-width: 90px;" required />
+                    <input type="text" class="form-input rx-med-freq" placeholder="Frequency (e.g. 1-0-1)" value="" required />
+                    <input type="text" class="form-input rx-med-dur" placeholder="Duration" value="" style="max-width: 90px;" required />
+                    <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove" style="color: var(--text-muted); padding: 4px;">✕</button>
+                </div>
+            `;
+        }
+
+        function addMedicationRow() {
+            const builder = document.getElementById('rx-meds-builder');
+            if (!builder) return;
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 items-center rx-med-row';
+            row.innerHTML = `
+                <input type="text" class="form-input rx-med-name" placeholder="Medicine Name" required />
+                <input type="text" class="form-input rx-med-dosage" placeholder="Dosage" style="max-width: 90px;" required />
+                <input type="text" class="form-input rx-med-freq" placeholder="Frequency" required />
+                <input type="text" class="form-input rx-med-dur" placeholder="Duration" style="max-width: 90px;" required />
+                <button type="button" class="btn-icon" onclick="removeMedicationRow(this)" title="Remove" style="color: var(--text-muted); padding: 4px;">✕</button>
+            `;
+            builder.appendChild(row);
+        }
+
+        function removeMedicationRow(btn) {
+            const rows = document.querySelectorAll('.rx-med-row');
+            if (rows.length > 1) {
+                btn.closest('.rx-med-row').remove();
+            } else {
+                window.toast.warning('Prescription must contain at least one medication.');
+            }
+        }
+
+        function openCreateRxModal(targetPatientIdOrName) {
+            populatePatientDropdown(targetPatientIdOrName);
+            renderDefaultMedicationRows();
+            document.getElementById('create-rx-modal').classList.add('open');
+        }
+
+        function closeCreateRxModal() {
+            document.getElementById('create-rx-modal').classList.remove('open');
+        }
+
+        document.getElementById('create-rx-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const selectEl = document.getElementById('rx-patient-select');
+            const patientId = parseInt(selectEl.value);
+            const diagnosis = document.getElementById('rx-diag-input').value.trim();
+            const notes = document.getElementById('rx-notes-input').value.trim();
+
+            const rows = document.querySelectorAll('.rx-med-row');
+            const items = [];
+            rows.forEach(r => {
+                const nameIn = r.querySelector('.rx-med-name');
+                const dosageIn = r.querySelector('.rx-med-dosage');
+                const freqIn = r.querySelector('.rx-med-freq');
+                const durIn = r.querySelector('.rx-med-dur');
+
+                if (nameIn && nameIn.value.trim()) {
+                    items.push({
+                        medicineName: nameIn.value.trim(),
+                        dosage: dosageIn ? dosageIn.value.trim() : '500mg',
+                        frequency: freqIn ? freqIn.value.trim() : '1-0-1 After food',
+                        duration: durIn ? durIn.value.trim() : '5 Days',
+                        instructions: 'Take as directed by physician.'
+                    });
+                }
+            });
+
+            if (items.length === 0) {
+                window.toast.warning('Please prescribe at least one medication.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-issue-rx');
+            btn.disabled = true;
+            btn.innerText = 'Signing & Issuing...';
+
+            try {
+                const res = await window.api.createPrescription({ patientId, diagnosis, notes, items });
+                window.toast.success('Prescription generated and signed successfully!');
+                closeCreateRxModal();
+                setTimeout(() => {
+                    const newRx = res && res.data;
+                    if (newRx && newRx.id) {
+                        window.location.href = `/prescription.html?id=${newRx.id}`;
+                    } else {
+                        window.location.href = '/prescription.html';
+                    }
+                }, 800);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to issue prescription');
+                btn.disabled = false;
+                btn.innerText = 'Sign & Issue Prescription';
+            }
+        });
+    </script>
+</body>
+</html>

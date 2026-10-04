@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Administration Dashboard — MediCareX</title>
+    <meta name="description" content="MediCareX central administration dashboard for monitoring applications, users, verified pharmacies, and medicine catalog.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="patient-welcome-card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                    <div>
+                        <div class="welcome-title">System Administration & Approvals ⚡</div>
+                        <div class="welcome-subtext">Review practitioner applications, verify licensed pharmacy stores, and manage platform user credentials.</div>
+                    </div>
+                    <div class="flex gap-2" style="flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="window.location.href='/admin-doctor-approvals.html'">Review Doctors</button>
+                        <button class="btn btn-secondary" onclick="window.location.href='/admin-pharmacy-approvals.html'">Review Pharmacies</button>
+                        <button class="btn btn-secondary" onclick="window.location.href='/admin-users.html'">Manage Accounts</button>
+                    </div>
+                </div>
+
+                <!-- Admin Action & Application Highlights -->
+                <div class="stats-grid-4" style="margin-bottom: 1.5rem;">
+                    <div class="stat-card" style="border-left: 4px solid #f59e0b; cursor: pointer;" onclick="window.location.href='/admin-doctor-approvals.html'">
+                        <div>
+                            <div class="stat-label">Pending Doctor Approvals</div>
+                            <div class="stat-value" id="admin-pending-doctors" style="color: #d97706;">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Review applications →</div>
+                        </div>
+                        <div class="stat-icon amber">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" style="border-left: 4px solid #8b5cf6; cursor: pointer;" onclick="window.location.href='/admin-pharmacy-approvals.html'">
+                        <div>
+                            <div class="stat-label">Pending Pharmacy Approvals</div>
+                            <div class="stat-value" id="admin-pending-pharmacies" style="color: #7c3aed;">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Review store licenses →</div>
+                        </div>
+                        <div class="stat-icon purple">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Registered Accounts</div>
+                            <div class="stat-value" id="admin-stat-users">0</div>
+                            <div style="font-size: 11px; color: var(--success); font-weight: 500;">Active in database</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Catalog Medicines</div>
+                            <div class="stat-value" id="admin-stat-meds">0</div>
+                            <div style="font-size: 11px; color: var(--primary-blue); font-weight: 500;">Active formulary</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2-Column Split: Application Queue & User Directory -->
+                <div class="dashboard-grid-2">
+                    <div class="card" style="padding: 1.5rem;">
+                        <div class="flex items-center justify-between" style="margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--navy); margin: 0;">Account Creation & Approvals</h3>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0;">Strict role-based management</p>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="window.location.href='/admin-users.html'">
+                                + Create Patient / Admin
+                            </button>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                            <div style="padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: var(--navy); font-size: 14px; display: block;">Doctor Practitioner Applications</strong>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">Requires license verification before activation</span>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/admin-doctor-approvals.html'">View Queue</button>
+                            </div>
+
+                            <div style="padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: var(--navy); font-size: 14px; display: block;">Pharmacy Vendor Applications</strong>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">Requires retail drug permit verification</span>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/admin-pharmacy-approvals.html'">View Queue</button>
+                            </div>
+
+                            <div style="padding: 1rem; border: 1px dashed var(--border); border-radius: var(--radius-md); background: #ffffff; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: var(--navy); font-size: 14px; display: block;">Direct Account Creation</strong>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">Direct creation limited to <strong>Patient</strong> &amp; <strong>Administrator</strong> only</span>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/admin-users.html'">Open Modal</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header flex justify-between items-center">
+                            <div>
+                                <h3 style="font-size: 1.1rem; color: var(--navy); margin: 0;">Recent User Accounts</h3>
+                                <span style="font-size: 11px; color: var(--text-muted);">Database Registry</span>
+                            </div>
+                            <a href="/admin-users.html" style="font-size: 12px; color: var(--primary-blue); text-decoration: none; font-weight: 500;">View All →</a>
+                        </div>
+                        <div id="admin-users-list" style="padding: 0.5rem;">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-dashboard');
+            loadAdminStats();
+        });
+
+        async function loadAdminStats() {
+            try {
+                const res = await window.api.getAdminStats();
+                const stats = res.data;
+                if (stats) {
+                    document.getElementById('admin-stat-users').innerText = stats.totalUsers || 0;
+                    document.getElementById('admin-stat-meds').innerText = stats.totalMedicines || 0;
+                    document.getElementById('admin-pending-doctors').innerText = stats.pendingDoctorApprovals !== undefined ? stats.pendingDoctorApprovals : 0;
+                    document.getElementById('admin-pending-pharmacies').innerText = stats.pendingPharmacyApprovals !== undefined ? stats.pendingPharmacyApprovals : 0;
+                }
+
+                // Load recent users list
+                const usersRes = await window.api.getAdminUsers();
+                const users = usersRes.data || [];
+                const list = document.getElementById('admin-users-list');
+
+                if (users.length === 0) {
+                    list.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No user accounts recorded.</div>`;
+                    return;
+                }
+
+                list.innerHTML = users.slice(0, 5).map(u => `
+                    <div class="flex items-center justify-between" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">
+                        <div class="flex items-center gap-3">
+                            <img src="${u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" class="user-avatar-sm" style="width: 32px; height: 32px;" />
+                            <div class="flex flex-col">
+                                <span style="font-size: 13px; font-weight: 600; color: var(--navy);">${escapeHtml(u.fullName)}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${escapeHtml(u.email)}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="badge ${u.role === 'ADMIN' ? 'badge-purple' : (u.role === 'DOCTOR' ? 'badge-blue' : (u.role === 'PHARMACY' ? 'badge-warning' : 'badge-gray'))}">
+                                ${escapeHtml(u.role)}
+                            </span>
+                            <span class="badge ${u.isActive ? 'badge-success' : 'badge-danger'}">
+                                ${u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacies Management — MediCareX Admin</title>
+    <meta name="description" content="Manage licensed pharmacy registrations, geographic coordinates, and verification approvals.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Pharmacies Network Management</h1>
+                        <p class="page-subtitle">Verify drug licenses, audit live inventory feeds, and monitor geospatial map coverage</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="openAddPharmacyModal()">
+                        + Add Licensed Pharmacy
+                    </button>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 340px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="admin-pharm-search" placeholder="Search pharmacy name, owner, license, city..." oninput="loadAdminPharmacies()" />
+                        </div>
+
+                        <select id="admin-pharm-status" class="form-select" style="width: auto;" onchange="loadAdminPharmacies()">
+                            <option value="All">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending Verification</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Pharmacies Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30px;"><input type="checkbox" style="accent-color: var(--primary-blue);" /></th>
+                                    <th>Pharmacy Name & License</th>
+                                    <th>Owner / Contact</th>
+                                    <th>Location & City</th>
+                                    <th>Geocoordinates (Lat/Lng)</th>
+                                    <th>Operating Hours</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-pharm-tbody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading pharmacies...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Pharmacy Modal -->
+    <div class="modal-overlay" id="admin-pharm-modal">
+        <div class="modal-container" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);" id="admin-pharm-modal-title">Register Licensed Pharmacy</h3>
+                <button class="btn-icon" onclick="closeAdminPharmModal()">✕</button>
+            </div>
+            <form id="admin-pharm-form">
+                <input type="hidden" id="admin-pharm-id" />
+                <div class="modal-body">
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-name-in">Pharmacy Name</label>
+                            <input type="text" id="pharm-name-in" class="form-input" placeholder="e.g. HealthPlus Pharmacy" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-lic-in">Drug License Number</label>
+                            <input type="text" id="pharm-lic-in" class="form-input" placeholder="e.g. DL-BLR-2026-9901" required />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-owner-in">Owner Name</label>
+                            <input type="text" id="pharm-owner-in" class="form-input" placeholder="e.g. Rajesh Patel" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-phone-in">Contact Phone</label>
+                            <input type="tel" id="pharm-phone-in" class="form-input" placeholder="+91 80234 56789" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="pharm-addr-in">Street Address</label>
+                        <input type="text" id="pharm-addr-in" class="form-input" placeholder="102, 100 Feet Road, Indiranagar" required />
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-city-in">City</label>
+                            <input type="text" id="pharm-city-in" class="form-input" value="Bengaluru" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-lat-in">Latitude</label>
+                            <input type="number" step="0.0001" id="pharm-lat-in" class="form-input" value="12.9784" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-lng-in">Longitude</label>
+                            <input type="number" step="0.0001" id="pharm-lng-in" class="form-input" value="77.6408" required />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-hours-in">Operating Hours</label>
+                            <input type="text" id="pharm-hours-in" class="form-input" value="8:00 AM - 11:00 PM" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="pharm-status-in">Status</label>
+                            <select id="pharm-status-in" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Pending">Pending Verification</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="flex items-center gap-2" style="font-size: 13px; color: var(--navy); cursor: pointer;">
+                            <input type="checkbox" id="pharm-24h-in" style="accent-color: var(--primary-blue);" />
+                            Operates 24/7 (Emergency Night Window Available)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAdminPharmModal()">Cancel</button>
+                    <button type="submit" id="btn-save-admin-pharm" class="btn btn-primary">Save Pharmacy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let adminPharmList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-pharmacies');
+            loadAdminPharmacies();
+        });
+
+        async function loadAdminPharmacies() {
+            const tbody = document.getElementById('admin-pharm-tbody');
+            const search = document.getElementById('admin-pharm-search').value.trim();
+            const status = document.getElementById('admin-pharm-status').value;
+
+            try {
+                const res = await window.api.getPharmacies({ q: search, status: status });
+                adminPharmList = res.data || [];
+
+                if (adminPharmList.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="padding: 3rem; text-align: center; color: var(--text-muted);">No pharmacies found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = adminPharmList.map(p => `
+                    <tr>
+                        <td><input type="checkbox" style="accent-color: var(--primary-blue);" /></td>
+                        <td>
+                            <strong style="color: var(--navy); font-size: 14px;">${p.pharmacyName}</strong>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Lic: ${p.licenseNumber}</div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px; font-weight: 500; color: var(--navy);">${p.ownerName || 'Verified Partner'}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${p.phone}</div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">${p.address}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${p.city}, ${p.state}</div>
+                        </td>
+                        <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">
+                            ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}
+                        </td>
+                        <td>
+                            <span class="badge ${p.is24Hours ? 'badge-blue' : 'badge-gray'}">${p.openingHours}</span>
+                        </td>
+                        <td>
+                            <span class="badge ${p.status === 'Active' ? 'badge-success' : (p.status === 'Pending' ? 'badge-warning' : 'badge-danger')}">
+                                <span class="badge-dot"></span>
+                                ${p.status}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-secondary" onclick="openEditPharmacyModal(${p.id})">Edit</button>
+                                <button class="btn btn-sm btn-icon" onclick="deletePharmacy(${p.id})" title="Delete">🗑</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function openAddPharmacyModal() {
+            document.getElementById('admin-pharm-id').value = '';
+            document.getElementById('admin-pharm-modal-title').innerText = 'Register Licensed Pharmacy';
+            document.getElementById('pharm-name-in').value = '';
+            document.getElementById('pharm-lic-in').value = `DL-BLR-${Math.floor(Math.random()*9000+1000)}`;
+            document.getElementById('pharm-owner-in').value = '';
+            document.getElementById('pharm-phone-in').value = '+91 80000 00000';
+            document.getElementById('pharm-addr-in').value = '';
+            document.getElementById('admin-pharm-modal').classList.add('open');
+        }
+
+        function openEditPharmacyModal(id) {
+            const p = adminPharmList.find(item => item.id === id);
+            if (!p) return;
+
+            document.getElementById('admin-pharm-id').value = p.id;
+            document.getElementById('admin-pharm-modal-title').innerText = `Edit ${p.pharmacyName}`;
+            document.getElementById('pharm-name-in').value = p.pharmacyName;
+            document.getElementById('pharm-lic-in').value = p.licenseNumber;
+            document.getElementById('pharm-owner-in').value = p.ownerName || '';
+            document.getElementById('pharm-phone-in').value = p.phone;
+            document.getElementById('pharm-addr-in').value = p.address;
+            document.getElementById('pharm-city-in').value = p.city;
+            document.getElementById('pharm-lat-in').value = p.latitude;
+            document.getElementById('pharm-lng-in').value = p.longitude;
+            document.getElementById('pharm-hours-in').value = p.openingHours;
+            document.getElementById('pharm-status-in').value = p.status;
+            document.getElementById('pharm-24h-in').checked = p.is24Hours;
+            document.getElementById('admin-pharm-modal').classList.add('open');
+        }
+
+        function closeAdminPharmModal() {
+            document.getElementById('admin-pharm-modal').classList.remove('open');
+        }
+
+        document.getElementById('admin-pharm-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('admin-pharm-id').value;
+            const pharmacyName = document.getElementById('pharm-name-in').value.trim();
+            const licenseNumber = document.getElementById('pharm-lic-in').value.trim();
+            const ownerName = document.getElementById('pharm-owner-in').value.trim();
+            const phone = document.getElementById('pharm-phone-in').value.trim();
+            const address = document.getElementById('pharm-addr-in').value.trim();
+            const city = document.getElementById('pharm-city-in').value.trim();
+            const latitude = parseFloat(document.getElementById('pharm-lat-in').value);
+            const longitude = parseFloat(document.getElementById('pharm-lng-in').value);
+            const openingHours = document.getElementById('pharm-hours-in').value.trim();
+            const status = document.getElementById('pharm-status-in').value;
+            const is24Hours = document.getElementById('pharm-24h-in').checked;
+
+            const payload = { pharmacyName, licenseNumber, ownerName, phone, address, city, state: 'Karnataka', latitude, longitude, openingHours, status, is24Hours, isVerified: true };
+
+            try {
+                if (id) {
+                    await window.api.updateAdminPharmacy({ id: parseInt(id), ...payload });
+                    window.toast.success('Pharmacy profile updated!');
+                } else {
+                    await window.api.createAdminPharmacy(payload);
+                    window.toast.success('Pharmacy registered and activated on map!');
+                }
+                closeAdminPharmModal();
+                loadAdminPharmacies();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        });
+
+        async function deletePharmacy(id) {
+            if (!confirm('Are you sure you want to remove this pharmacy?')) return;
+            try {
+                await window.api.deleteAdminPharmacy(id);
+                window.toast.success('Pharmacy removed.');
+                loadAdminPharmacies();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+    </script>
+</body>
+</html>

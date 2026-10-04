@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find & Book Specialist Doctors — MediCareX</title>
+    <meta name="description" content="Search verified specialist doctors in Bangalore, check real-time availability, and book appointments instantly.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .doctor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .doctor-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+        .doctor-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .doctor-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+            border-color: #bfdbfe;
+        }
+        .doctor-header {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        .doctor-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .doctor-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 2px;
+        }
+        .doctor-spec {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+        .doctor-hospital {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .doctor-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+        }
+        .meta-item-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .meta-item-val {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+        .time-slots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+        .slot-pill {
+            padding: 0.5rem 0.25rem;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            border-radius: var(--radius-sm);
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: var(--navy);
+        }
+        .slot-pill:hover:not(:disabled) {
+            border-color: var(--primary-blue);
+            background: #eff6ff;
+            color: var(--primary-blue);
+        }
+        .slot-pill.selected {
+            background: var(--primary-blue) !important;
+            border-color: var(--primary-blue) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+        }
+        .slot-pill:disabled, .slot-pill.booked {
+            background: #f1f5f9;
+            color: #94a3b8;
+            border-color: #e2e8f0;
+            cursor: not-allowed;
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        @media (max-width: 768px) {
+            .doctor-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .doctor-card {
+                padding: 1.25rem 1rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .doctor-meta-grid {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+                padding: 0.625rem 0.75rem;
+            }
+        }
+        .spec-pills-bar {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            margin-top: 1rem;
+        }
+        .spec-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #f1f5f9;
+            color: var(--text-secondary);
+            border: 1px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .spec-pill:hover {
+            background: #e2e8f0;
+            color: var(--navy);
+        }
+        .spec-pill.active {
+            background: var(--primary-blue);
+            color: #ffffff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Find & Book Specialist Doctors</h1>
+                        <p class="page-subtitle">Schedule in-person or video consultations with verified physicians across Bangalore</p>
+                    </div>
+
+                    <a href="/appointments.html" class="btn btn-secondary btn-sm">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        View My Appointments
+                    </a>
+                </div>
+
+                <!-- Search & Specialization Filter -->
+                <div class="card" style="padding: 1.5rem; margin-bottom: 2rem;">
+                    <div class="search-bar-container">
+                        <svg class="search-icon-inside" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="doctor-search-input" class="search-input-lg" placeholder="Search doctor by name, medical specialty, or hospital..." />
+                    </div>
+
+                    <div class="spec-pills-bar" id="spec-pills-bar">
+                        <button class="spec-pill active" onclick="setSpecializationFilter(this, 'All')">All Specialists</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'Cardiologist')">Cardiology</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'Pediatrician')">Pediatrics</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'Dermatologist')">Dermatology</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'Neurologist')">Neurology</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'Orthopedic')">Orthopedics</button>
+                        <button class="spec-pill" onclick="setSpecializationFilter(this, 'General Physician')">General Medicine</button>
+                    </div>
+                </div>
+
+                <!-- Doctors Grid -->
+                <div id="doctor-count-banner" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                    Loading verified doctors...
+                </div>
+
+                <div class="doctor-grid" id="doctors-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div class="modal-overlay" id="booking-modal">
+        <div class="modal-container" style="max-width: 540px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy); font-size: 1.15rem;">Book Doctor Appointment</h3>
+                <button class="btn-icon" onclick="closeBookingModal()">✕</button>
+            </div>
+            
+            <form id="booking-form">
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <!-- Doctor Summary Header -->
+                    <div class="flex items-center gap-3" style="background: #eff6ff; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; border: 1px solid #bfdbfe;">
+                        <img id="modal-doc-avatar" src="" alt="Doctor Avatar" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #ffffff;" />
+                        <div style="flex: 1;">
+                            <div id="modal-doc-name" style="font-weight: 700; color: var(--navy); font-size: 15px;"></div>
+                            <div id="modal-doc-spec" style="font-size: 12px; color: var(--primary-blue); font-weight: 600;"></div>
+                            <div id="modal-doc-hosp" style="font-size: 11px; color: var(--text-secondary);"></div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 11px; color: var(--text-muted);">Consultation</div>
+                            <div id="modal-doc-fee" style="font-size: 15px; font-weight: 700; color: var(--navy);"></div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Doctor ID -->
+                    <input type="hidden" id="modal-doc-id" />
+
+                    <!-- Date Selection -->
+                    <div class="form-group">
+                        <label class="form-label" for="booking-date">
+                            Select Appointment Date <span style="color: var(--danger);">*</span>
+                        </label>
+                        <input type="date" id="booking-date" class="form-input" required onchange="onDateChange()" />
+                        <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block;">Select today or an upcoming future date.</span>
+                    </div>
+
+                    <!-- Available Time Slots -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Available Time Slot <span style="color: var(--danger);">*</span>
+                        </label>
+                        <div id="slots-loading" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 0.5rem; display: none;">
+                            Checking real-time slot availability...
+                        </div>
+                        <div class="time-slots-container" id="time-slots-container">
+                            <!-- Populated dynamically based on doctor and date -->
+                        </div>
+                        <input type="hidden" id="selected-slot-time" required />
+                        <span id="slot-error-msg" style="font-size: 12px; color: var(--danger); display: none; margin-top: 4px;">Please select an available time slot.</span>
+                    </div>
+
+                    <!-- Consultation Type -->
+                    <div class="form-group">
+                        <label class="form-label" for="booking-type">Consultation Type</label>
+                        <select id="booking-type" class="form-select">
+                            <option value="General Consultation">General Consultation</option>
+                            <option value="Follow-up Consultation">Follow-up Consultation</option>
+                            <option value="Specialist Review">Specialist Review</option>
+                            <option value="Diagnostic Review">Diagnostic Review</option>
+                            <option value="Second Opinion">Second Opinion</option>
+                        </select>
+                    </div>
+
+                    <!-- Reason / Symptoms -->
+                    <div class="form-group">
+                        <label class="form-label" for="booking-reason">
+                            Appointment Reason / Symptoms <span style="color: var(--text-muted); font-weight: 400;">(Optional)</span>
+                        </label>
+                        <textarea id="booking-reason" class="form-textarea" rows="2" placeholder="Briefly describe health concerns, symptoms, or reason for visit..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Cancel</button>
+                    <button type="submit" id="btn-confirm-booking" class="btn btn-primary" style="min-width: 150px;">
+                        Confirm Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Booking Confirmation Modal -->
+    <div class="modal-overlay" id="success-modal">
+        <div class="modal-container" style="max-width: 460px; text-align: center; padding: 2rem;">
+            <div style="width: 60px; height: 60px; background: #ecfdf5; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 1.25rem;">
+                ✓
+            </div>
+            <h3 style="color: var(--navy); font-size: 1.3rem; margin-bottom: 0.5rem;">Appointment Booked Successfully!</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Your consultation has been confirmed and registered in the MediCareX database.
+            </p>
+
+            <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; text-align: left; margin-bottom: 1.5rem;">
+                <div class="flex justify-between" style="padding: 4px 0; font-size: 13px;">
+                    <span style="color: var(--text-muted);">Doctor:</span>
+                    <strong style="color: var(--navy);" id="conf-doc-name"></strong>
+                </div>
+                <div class="flex justify-between" style="padding: 4px 0; font-size: 13px;">
+                    <span style="color: var(--text-muted);">Date:</span>
+                    <strong style="color: var(--navy);" id="conf-date"></strong>
+                </div>
+                <div class="flex justify-between" style="padding: 4px 0; font-size: 13px;">
+                    <span style="color: var(--text-muted);">Time:</span>
+                    <strong style="color: var(--primary-blue);" id="conf-time"></strong>
+                </div>
+                <div class="flex justify-between" style="padding: 4px 0; font-size: 13px;">
+                    <span style="color: var(--text-muted);">Status:</span>
+                    <span class="badge badge-success" id="conf-status">Confirmed</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3 justify-center">
+                <button class="btn btn-secondary" onclick="window.location.href='/dashboard.html'">Back to Dashboard</button>
+                <button class="btn btn-primary" onclick="window.location.href='/appointments.html'">View My Appointments</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let allDoctors = [];
+        let currentSpecFilter = 'All';
+        let selectedDoctor = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = window.api.getUser();
+            if (user && user.role === 'DOCTOR') {
+                window.location.href = '/doctor-medicine-search.html';
+                return;
+            }
+
+            window.Shell.init('doctor-search');
+
+            // Setup min date for date input to today
+            const todayStr = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('booking-date');
+            dateInput.min = todayStr;
+            
+            // Set default date to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.value = tomorrow.toISOString().split('T')[0];
+
+            let timer;
+            document.getElementById('doctor-search-input').addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(loadDoctors, 300);
+            });
+
+            loadDoctors();
+
+            // Handle URL params if preselecting doctor
+            const urlParams = new URLSearchParams(window.location.search);
+            const docId = urlParams.get('doctorId');
+            if (docId) {
+                setTimeout(() => openBookingModalById(parseInt(docId)), 500);
+            }
+        });
+
+        function setSpecializationFilter(btn, filter) {
+            document.querySelectorAll('.spec-pill').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentSpecFilter = filter;
+            loadDoctors();
+        }
+
+        async function loadDoctors() {
+            const query = document.getElementById('doctor-search-input').value.trim();
+            const container = document.getElementById('doctors-container');
+            const countEl = document.getElementById('doctor-count-banner');
+
+            try {
+                const res = await window.api.getDoctors({
+                    q: query,
+                    specialization: currentSpecFilter !== 'All' ? currentSpecFilter : undefined
+                });
+
+                allDoctors = res.data || [];
+                countEl.innerText = `${allDoctors.length} Verified Doctor${allDoctors.length !== 1 ? 's' : ''} Available`;
+
+                if (allDoctors.length === 0) {
+                    container.innerHTML = `
+                        <div class="card" style="grid-column: 1 / -1; padding: 3rem; text-align: center;">
+                            <div style="font-size: 36px; margin-bottom: 1rem;">🩺</div>
+                            <h3 style="color: var(--navy); margin-bottom: 0.5rem;">No doctors found matching your criteria</h3>
+                            <p style="color: var(--text-secondary); font-size: 13px;">Try clearing filters or searching for another medical specialty.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = allDoctors.map(doc => `
+                    <div class="doctor-card">
+                        <div>
+                            <div class="doctor-header">
+                                <img src="${doc.avatarUrl || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150'}" 
+                                     alt="${doc.doctorName}" 
+                                     class="doctor-avatar" 
+                                     onerror="this.src='https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150'" />
+                                <div style="flex: 1;">
+                                    <div class="doctor-name">${doc.doctorName}</div>
+                                    <div class="doctor-spec">${doc.specialization}</div>
+                                    <div class="doctor-hospital">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        ${doc.hospitalAffiliation || 'Manipal Hospital, Bangalore'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="doctor-meta-grid">
+                                <div>
+                                    <div class="meta-item-label">Experience</div>
+                                    <div class="meta-item-val">${doc.experienceYears || 5}+ Years</div>
+                                </div>
+                                <div>
+                                    <div class="meta-item-label">Rating</div>
+                                    <div class="meta-item-val" style="color: #d97706;">★ ${doc.rating || '4.8'}</div>
+                                </div>
+                                <div>
+                                    <div class="meta-item-label">Consultation Fee</div>
+                                    <div class="meta-item-val">₹${(doc.consultationFee || 500).toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="meta-item-label">Hours</div>
+                                    <div class="meta-item-val" style="font-size: 11px;">${doc.availableHours || '09:00 AM - 05:00 PM'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button class="btn btn-primary w-full" onclick="openBookingModal(${doc.id})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                Book Appointment
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div class="card" style="grid-column: 1 / -1; padding: 2rem; color: var(--danger); text-align: center;">Error loading doctors: ${err.message}</div>`;
+            }
+        }
+
+        function openBookingModal(docId) {
+            selectedDoctor = allDoctors.find(d => d.id === docId);
+            if (!selectedDoctor) return;
+
+            document.getElementById('modal-doc-id').value = selectedDoctor.id;
+            document.getElementById('modal-doc-name').innerText = selectedDoctor.doctorName;
+            document.getElementById('modal-doc-spec').innerText = selectedDoctor.specialization;
+            document.getElementById('modal-doc-hosp').innerText = selectedDoctor.hospitalAffiliation || 'Manipal Hospital, Bangalore';
+            document.getElementById('modal-doc-fee').innerText = `₹${(selectedDoctor.consultationFee || 500).toFixed(2)}`;
+            document.getElementById('modal-doc-avatar').src = selectedDoctor.avatarUrl || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150';
+
+            document.getElementById('selected-slot-time').value = '';
+            document.getElementById('slot-error-msg').style.display = 'none';
+
+            document.getElementById('booking-modal').classList.add('open');
+            loadSlotsForCurrentDate();
+        }
+
+        function openBookingModalById(docId) {
+            if (allDoctors.length > 0) {
+                openBookingModal(docId);
+            }
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal').classList.remove('open');
+        }
+
+        async function onDateChange() {
+            loadSlotsForCurrentDate();
+        }
+
+        async function loadSlotsForCurrentDate() {
+            if (!selectedDoctor) return;
+            const date = document.getElementById('booking-date').value;
+            const container = document.getElementById('time-slots-container');
+            const loading = document.getElementById('slots-loading');
+
+            if (!date) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 1rem;">Please choose a date.</div>';
+                return;
+            }
+
+            loading.style.display = 'block';
+            container.innerHTML = '';
+            document.getElementById('selected-slot-time').value = '';
+
+            try {
+                const res = await window.api.getAvailableSlots(selectedDoctor.id, date);
+                const slots = res.data || [];
+                loading.style.display = 'none';
+
+                if (slots.length === 0) {
+                    container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--danger); padding: 1rem;">No slots configured for this date.</div>';
+                    return;
+                }
+
+                container.innerHTML = slots.map(s => {
+                    const isAvailable = s.available && !s.isBooked;
+                    return `
+                        <button type="button" 
+                                class="slot-pill ${!isAvailable ? 'booked' : ''}" 
+                                ${!isAvailable ? 'disabled title="Slot Already Booked"' : `onclick="selectTimeSlot(this, '${s.time}')"`}>
+                            ${s.time}
+                        </button>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                loading.style.display = 'none';
+                container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--danger); padding: 1rem;">Failed to load slots: ${err.message}</div>`;
+            }
+        }
+
+        function selectTimeSlot(btn, time) {
+            document.querySelectorAll('.slot-pill').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('selected-slot-time').value = time;
+            document.getElementById('slot-error-msg').style.display = 'none';
+        }
+
+        document.getElementById('booking-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const time = document.getElementById('selected-slot-time').value;
+            if (!time) {
+                document.getElementById('slot-error-msg').style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('btn-confirm-booking');
+            btn.disabled = true;
+            btn.innerText = 'Confirming Booking...';
+
+            const payload = {
+                doctorId: parseInt(document.getElementById('modal-doc-id').value),
+                appointmentDate: document.getElementById('booking-date').value,
+                appointmentTime: time,
+                type: document.getElementById('booking-type').value,
+                reason: document.getElementById('booking-reason').value.trim()
+            };
+
+            try {
+                const res = await window.api.bookAppointment(payload);
+                closeBookingModal();
+                
+                // Show success confirmation modal
+                const data = res.data || {};
+                document.getElementById('conf-doc-name').innerText = data.doctorName || selectedDoctor.doctorName;
+                document.getElementById('conf-date').innerText = data.appointmentDate || payload.appointmentDate;
+                document.getElementById('conf-time').innerText = data.appointmentTime || payload.appointmentTime;
+                document.getElementById('conf-status').innerText = data.status || 'Confirmed';
+
+                document.getElementById('success-modal').classList.add('open');
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to book appointment.');
+                // If conflict, reload slots
+                if (err.message.includes('slot') || err.message.includes('available')) {
+                    loadSlotsForCurrentDate();
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Confirm Booking';
+            }
+        });
+    </script>
+</body>
+</html>

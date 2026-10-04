@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Account — MediCareX Healthcare SaaS</title>
+    <meta name="description" content="Register for MediCareX to access medicines, consult licensed healthcare doctors, and manage pharmacy inventories.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/pages/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <!-- LEFT PANEL: Registration Form -->
+        <div class="auth-left-panel">
+            <div class="auth-brand">
+                <div class="brand-logo-icon">✚</div>
+                <div class="brand-name">MediCare<span>X</span></div>
+            </div>
+
+            <h1 class="auth-heading">Create Your Account</h1>
+            <p class="auth-subtext">Join thousands of patients, certified physicians, and licensed pharmacy partners on India's smart medicine network.</p>
+
+            <form id="register-form">
+                <!-- Account Type Selection Cards (3 Public Roles: Patient, Doctor, Pharmacy) -->
+                <label class="form-label">Select Account Type</label>
+                <div class="role-selector-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="role-card-option selected" data-role="PATIENT" onclick="selectRole('PATIENT')">
+                        <div class="role-icon-box">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <div class="role-card-title">Patient</div>
+                    </div>
+                    <div class="role-card-option" data-role="DOCTOR" onclick="selectRole('DOCTOR')">
+                        <div class="role-icon-box">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M10 14h4"/><path d="M12 12v4"/></svg>
+                        </div>
+                        <div class="role-card-title">Doctor</div>
+                    </div>
+                    <div class="role-card-option" data-role="PHARMACY" onclick="selectRole('PHARMACY')">
+                        <div class="role-icon-box">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                        </div>
+                        <div class="role-card-title">Pharmacy</div>
+                    </div>
+                </div>
+                <input type="hidden" id="register-role" value="PATIENT" />
+
+                <!-- Common User Fields -->
+                <div class="form-group">
+                    <label class="form-label" for="reg-fullname" id="lbl-fullname">Full Name</label>
+                    <input type="text" id="reg-fullname" class="form-input" placeholder="Enter your full name" required />
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="form-group w-full">
+                        <label class="form-label" for="reg-email">Email Address</label>
+                        <input type="email" id="reg-email" class="form-input" placeholder="name@example.com" autocomplete="username" required />
+                    </div>
+                    <div class="form-group w-full">
+                        <label class="form-label" for="reg-phone">Phone Number</label>
+                        <input type="tel" id="reg-phone" class="form-input" placeholder="+91 98765 43210" required />
+                    </div>
+                </div>
+
+                <!-- ROLE SPECIFIC: Patient Fields -->
+                <div id="patient-extra-fields" class="flex flex-col gap-3" style="margin-bottom: 1rem;">
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-blood">Blood Group</label>
+                            <select id="reg-blood" class="form-input">
+                                <option value="O+">O Positive (O+)</option>
+                                <option value="A+">A Positive (A+)</option>
+                                <option value="B+">B Positive (B+)</option>
+                                <option value="AB+">AB Positive (AB+)</option>
+                                <option value="O-">O Negative (O-)</option>
+                                <option value="A-">A Negative (A-)</option>
+                                <option value="B-">B Negative (B-)</option>
+                                <option value="AB-">AB Negative (AB-)</option>
+                            </select>
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-gender">Gender</label>
+                            <select id="reg-gender" class="form-input">
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="reg-address">Residential Address</label>
+                        <input type="text" id="reg-address" class="form-input" placeholder="e.g. 42, 4th Main, Indiranagar, Bengaluru" />
+                    </div>
+                </div>
+
+                <!-- ROLE SPECIFIC: Doctor Fields -->
+                <div id="doctor-extra-fields" class="flex flex-col gap-3 hidden" style="margin-bottom: 1rem;">
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-specialization">Medical Specialization</label>
+                            <input type="text" id="reg-specialization" class="form-input" placeholder="e.g. Cardiologist & Physician" />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-license">Medical License #</label>
+                            <input type="text" id="reg-license" class="form-input" placeholder="e.g. KMC-98402-MD" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="reg-hospital">Hospital Affiliation / Clinic</label>
+                        <input type="text" id="reg-hospital" class="form-input" placeholder="e.g. Manipal Hospital, Bangalore" />
+                    </div>
+                </div>
+
+                <!-- ROLE SPECIFIC: Pharmacy Fields -->
+                <div id="pharmacy-extra-fields" class="flex flex-col gap-3 hidden" style="margin-bottom: 1rem;">
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-pharm-name">Pharmacy Store Name</label>
+                            <input type="text" id="reg-pharm-name" class="form-input" placeholder="e.g. Apollo Pharmacy Indiranagar" />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-drug-license">Drug License #</label>
+                            <input type="text" id="reg-drug-license" class="form-input" placeholder="e.g. DL-BLR-2024-8891" />
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-pharm-city">City</label>
+                            <input type="text" id="reg-pharm-city" class="form-input" placeholder="Bengaluru" />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="reg-pharm-pincode">Pincode</label>
+                            <input type="text" id="reg-pharm-pincode" class="form-input" placeholder="560038" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="reg-pharm-address">Store Street Address</label>
+                        <input type="text" id="reg-pharm-address" class="form-input" placeholder="e.g. 100 Feet Rd, Indiranagar" />
+                    </div>
+                </div>
+
+                <!-- Password Fields -->
+                <div class="flex gap-4">
+                    <div class="form-group w-full">
+                        <label class="form-label" for="reg-password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="reg-password" class="form-input" placeholder="••••••••" autocomplete="new-password" required />
+                        </div>
+                    </div>
+                    <div class="form-group w-full">
+                        <label class="form-label" for="reg-confirm-password">Confirm Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="reg-confirm-password" class="form-input" placeholder="••••••••" autocomplete="new-password" required />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="flex items-center gap-2" style="font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+                        <input type="checkbox" id="terms-check" required style="accent-color: var(--primary-blue);" />
+                        I agree to the <a href="javascript:void(0)" onclick="alert('MediCareX Terms of Service: By registering, you agree to secure HIPAA-compliant storage of health records and verified prescription handling.')" style="text-decoration: underline;">Terms of Service</a> and <a href="javascript:void(0)" onclick="alert('MediCareX Privacy Policy: Your medical data and prescription records are encrypted end-to-end and never sold to third parties.')" style="text-decoration: underline;">Privacy Policy</a>
+                    </label>
+                </div>
+
+                <button type="submit" id="btn-register" class="btn btn-primary btn-lg w-full">
+                    Create Account
+                </button>
+            </form>
+
+            <p class="text-center" style="margin-top: 1.5rem; font-size: 13px;">
+                Already have an account? <a href="/login.html" class="font-semibold">Sign In</a>
+            </p>
+        </div>
+
+        <!-- RIGHT PANEL: Promotional Shield Banner -->
+        <div class="auth-right-panel">
+            <div class="promo-badge">
+                <span>🛡</span> Secure & HIPAA Compliant
+            </div>
+            <h2 class="promo-title">One Platform.<br>A Healthier Community.</h2>
+            
+            <div class="benefits-list">
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Find verified real-time availability across local pharmacy inventories</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Securely upload and store your family's lifelong health records</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">Seamless doctor consultation booking and instant digital prescription PDFs</div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-check-icon">✓</div>
+                    <div class="benefit-text">End-to-end encrypted medical data storage and zero ads</div>
+                </div>
+            </div>
+
+            <div class="hero-stats-banner">
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">100%</div>
+                    <div class="hero-stat-lbl">Privacy First</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">500+</div>
+                    <div class="hero-stat-lbl">Pharmacies</div>
+                </div>
+                <div class="hero-stat-item">
+                    <div class="hero-stat-num">24/7</div>
+                    <div class="hero-stat-lbl">AI Support</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        function selectRole(role) {
+            document.getElementById('register-role').value = role;
+            document.querySelectorAll('.role-card-option').forEach(el => {
+                if (el.getAttribute('data-role') === role) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+
+            // Toggle role-specific fields
+            document.getElementById('patient-extra-fields').classList.toggle('hidden', role !== 'PATIENT');
+            document.getElementById('doctor-extra-fields').classList.toggle('hidden', role !== 'DOCTOR');
+            document.getElementById('pharmacy-extra-fields').classList.toggle('hidden', role !== 'PHARMACY');
+
+            // Dynamic label updates
+            const lbl = document.getElementById('lbl-fullname');
+            if (role === 'DOCTOR') {
+                lbl.innerText = 'Doctor Full Name (with Title)';
+            } else if (role === 'PHARMACY') {
+                lbl.innerText = 'Pharmacy Owner / Manager Name';
+            } else {
+                lbl.innerText = 'Full Name';
+            }
+        }
+
+        document.getElementById('register-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-register');
+            const fullName = document.getElementById('reg-fullname').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+            const role = document.getElementById('register-role').value;
+
+            if (password !== confirmPassword) {
+                window.toast.error('Passwords do not match.');
+                return;
+            }
+
+            const payload = { fullName, email, phone, password, role };
+
+            // Attach role-specific extra parameters
+            if (role === 'PATIENT') {
+                payload.bloodGroup = document.getElementById('reg-blood').value;
+                payload.gender = document.getElementById('reg-gender').value;
+                payload.address = document.getElementById('reg-address').value.trim();
+            } else if (role === 'DOCTOR') {
+                payload.specialization = document.getElementById('reg-specialization').value.trim();
+                payload.licenseNumber = document.getElementById('reg-license').value.trim();
+                payload.hospitalAffiliation = document.getElementById('reg-hospital').value.trim();
+            } else if (role === 'PHARMACY') {
+                payload.pharmacyName = document.getElementById('reg-pharm-name').value.trim() || (fullName + ' Pharmacy');
+                payload.licenseNumber = document.getElementById('reg-drug-license').value.trim();
+                payload.city = document.getElementById('reg-pharm-city').value.trim() || 'Bengaluru';
+                payload.postalCode = document.getElementById('reg-pharm-pincode').value.trim() || '560001';
+                payload.address = document.getElementById('reg-pharm-address').value.trim() || 'MG Road';
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Creating Account...';
+
+            try {
+                const res = await window.api.register(payload);
+                window.toast.success('Account created successfully!');
+                
+                const resRole = (res.data?.user?.role || role).toUpperCase();
+                setTimeout(() => {
+                    if (resRole === 'DOCTOR') {
+                        window.location.href = '/doctor-dashboard.html';
+                    } else if (resRole === 'PHARMACY') {
+                        window.location.href = '/pharmacy-dashboard.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                }, 700);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to create account.');
+                btn.disabled = false;
+                btn.innerText = 'Create Account';
+            }
+        });
+    </script>
+</body>
+</html>

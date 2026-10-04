@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Trip History — MediCareX Ambulance</title>
+    <meta name="description" content="Log of completed emergency patient transports, rescue logs, and hospital dispatches.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center flex-wrap gap-4 mb-4">
+                    <div>
+                        <h1 class="page-title">Emergency Mission & Trip History</h1>
+                        <p class="page-subtitle">Historical log of completed emergency patient pickups and hospital trauma transfers</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-outline" onclick="loadHistory()">
+                            <span>↻ Refresh Records</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary Stat Cards -->
+                <div class="stats-grid-4 mb-4">
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Total Missions</div>
+                            <div class="stat-value" id="stat-total-trips">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">All recorded dispatches</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Successfully Completed</div>
+                            <div class="stat-value" id="stat-completed-trips" style="color: #10B981;">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Patient handovers done</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Primary Destination</div>
+                            <div class="stat-value" style="font-size: 1rem; color: var(--navy);">Apollo ER</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Trauma Center Hub</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Response Reliability</div>
+                            <div class="stat-value" style="color: #2563EB;">100%</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Verified on duty</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Table Card -->
+                <div class="card">
+                    <div class="card-header flex justify-between items-center flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <h3 class="card-title" style="font-size: 1.05rem; color: var(--navy);">Past Dispatches Log</h3>
+                            <span id="history-badge" class="badge badge-gray">0 records</span>
+                        </div>
+                    </div>
+
+                    <div id="history-table-container" class="table-responsive">
+                        <div class="text-center py-8 text-muted">
+                            <p style="margin: 0;">Loading mission history...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('ambulance-trip-history');
+            loadHistory();
+        });
+
+        async function loadHistory() {
+            try {
+                const res = await window.api.getDriverEmergencyRequests();
+                const data = res.data || {};
+                const myRequests = data.myRequests || [];
+
+                const historyTrips = myRequests.filter(r => ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(r.status));
+                const completedCount = myRequests.filter(r => r.status === 'COMPLETED').length;
+
+                document.getElementById('stat-total-trips').innerText = myRequests.length;
+                document.getElementById('stat-completed-trips').innerText = completedCount;
+                document.getElementById('history-badge').innerText = `${historyTrips.length} records`;
+
+                renderHistoryTable(historyTrips);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderHistoryTable(trips) {
+            const container = document.getElementById('history-table-container');
+
+            if (!trips || trips.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted" style="font-size: 13.5px;">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📜</div>
+                        <strong style="color: var(--navy); display: block; margin-bottom: 0.25rem;">No completed trips yet</strong>
+                        <p style="margin: 0; color: var(--text-secondary); max-width: 440px; margin-inline: auto;">
+                            Your completed emergency patient transfers and hospital handovers will appear here.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Trip #</th>
+                            <th>Patient / Caller</th>
+                            <th>Emergency Type</th>
+                            <th>Severity</th>
+                            <th>Pickup Location</th>
+                            <th>Destination Hospital</th>
+                            <th>Requested At</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trips.map(t => `
+                            <tr>
+                                <td><span class="badge badge-gray font-bold">#${t.id}</span></td>
+                                <td>
+                                    <div class="font-bold" style="color: var(--navy); font-size: 13px;">${escapeHtml(t.patientName || 'Emergency Patient')}</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">${escapeHtml(t.contactPhone || '')}</div>
+                                </td>
+                                <td><span class="badge badge-danger uppercase font-bold">${escapeHtml(t.emergencyType || 'GENERAL')}</span></td>
+                                <td><span class="badge badge-warning uppercase font-bold">${escapeHtml(t.severity || 'CRITICAL')}</span></td>
+                                <td style="font-size: 12.5px; max-width: 200px;">${escapeHtml(t.pickupAddress || 'GPS Location')}</td>
+                                <td>
+                                    <div style="font-weight: 700; color: #0F172A; font-size: 13px;">🏥 ${escapeHtml(t.destinationHospitalName || t.hospitalAffiliation || 'Central Trauma Network')}</div>
+                                    ${t.destinationHospitalAddress ? `<div style="font-size: 11px; color: #64748B;">${escapeHtml(t.destinationHospitalAddress)}</div>` : ''}
+                                </td>
+                                <td style="font-size: 12px; color: var(--text-muted);">${escapeHtml(t.requestedAt || '')}</td>
+                                <td>
+                                    <span class="badge ${t.status === 'COMPLETED' ? 'badge-success' : 'badge-danger'} uppercase font-bold">
+                                        ${escapeHtml(t.status)}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

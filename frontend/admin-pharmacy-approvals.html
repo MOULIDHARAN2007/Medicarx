@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Applications & Approvals — MediCareX Admin</title>
+    <meta name="description" content="Review pharmacy drug store licenses, commercial registration, and approve or reject pharmacy store registrations.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center" style="margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h1 class="page-title">Pharmacy Applications & Approvals</h1>
+                        <p class="page-subtitle">Review pharmacy drug retail licenses, store locations, and activate pharmacy vendor accounts</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="loadApplications()">
+                        🔄 Refresh List
+                    </button>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 320px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="pharm-search-input" placeholder="Search pharmacy name, owner, license, city..." oninput="loadApplications()" />
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <select id="pharm-status-select" class="form-select" style="width: auto;" onchange="loadApplications()">
+                                <option value="All">All Statuses</option>
+                                <option value="PENDING" selected>Pending Review</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applications Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Pharmacy & Owner</th>
+                                    <th>Contact Information</th>
+                                    <th>Drug License #</th>
+                                    <th>Address / City</th>
+                                    <th>Submitted Date</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pharm-tbody">
+                                <tr>
+                                    <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading pharmacy applications...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Approve Confirmation Modal -->
+    <div class="modal-overlay" id="approve-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #d1fae5;">
+                <h3 style="color: #065f46; display: flex; align-items: center; gap: 8px;">
+                    <span>✅</span> Approve Pharmacy Account?
+                </h3>
+                <button class="btn-icon" onclick="closeApproveModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Are you sure you want to approve and activate the store account for <strong id="approve-pharm-name" style="color: var(--primary-blue);">Pharmacy Name</strong>?
+                </p>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 13px; color: #166534;">
+                    ✓ The pharmacy login will be activated immediately. They will be able to manage inventory, import stock via CSV, receive online orders, and appear on the patient pharmacy map.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeApproveModal()">Cancel</button>
+                <button type="button" id="btn-confirm-approve" class="btn btn-success" style="background: #10b981; color: white; border: none;" onclick="confirmApprove()">
+                    Approve Pharmacy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Confirmation Modal -->
+    <div class="modal-overlay" id="reject-modal">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header" style="border-bottom-color: #fee2e2;">
+                <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                    <span>❌</span> Reject Pharmacy Application
+                </h3>
+                <button class="btn-icon" onclick="closeRejectModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 15px; color: var(--navy); margin-bottom: 0.75rem;">
+                    Reject application for <strong id="reject-pharm-name" style="color: #dc2626;">Pharmacy Name</strong>?
+                </p>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" for="reject-reason-input">Rejection Reason / Notes (Audit Record)</label>
+                    <textarea id="reject-reason-input" class="form-input" rows="3" placeholder="e.g. Drug license number could not be verified with state pharmacy council."></textarea>
+                </div>
+                <div style="background: #fef2f2; border: 1px solid #fecdd3; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 12px; color: #991b1b; margin-top: 0.5rem;">
+                    ℹ️ The account will remain inactive. The application record will be preserved for administrative audit history.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+                <button type="button" id="btn-confirm-reject" class="btn btn-danger" style="background: #ef4444; color: white; border: none;" onclick="confirmReject()">
+                    Reject Application
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentApplications = [];
+        let selectedApp = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-pharmacy-approvals');
+            loadApplications();
+        });
+
+        async function loadApplications() {
+            const tbody = document.getElementById('pharm-tbody');
+            const search = document.getElementById('pharm-search-input').value.trim();
+            const status = document.getElementById('pharm-status-select').value;
+
+            try {
+                const res = await window.api.getPharmacyApprovals({
+                    status: status,
+                    query: search
+                });
+
+                currentApplications = res.data || [];
+                if (currentApplications.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-muted);">No pharmacy applications found matching the selected filters.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = currentApplications.map(app => {
+                    const details = app.details || {};
+                    const pharmName = details.pharmacyName || app.applicantName || 'Pharmacy Store';
+                    const ownerName = details.ownerName || app.applicantName || 'Owner';
+                    const lic = details.licenseNumber || details.license || 'N/A';
+                    const addr = details.address || (details.city ? details.city + ', ' + (details.state || '') : 'Address on file');
+                    const isPending = (app.status || '').toUpperCase() === 'PENDING';
+
+                    let statusBadge = '<span class="badge badge-warning"><span class="badge-dot"></span>Pending Review</span>';
+                    if (app.status === 'APPROVED') {
+                        statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Approved</span>';
+                    } else if (app.status === 'REJECTED') {
+                        statusBadge = `<span class="badge badge-danger" title="${escapeHtml(app.rejectionReason || 'Rejected')}"><span class="badge-dot"></span>Rejected</span>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>
+                                <strong style="font-size: 14px; color: var(--navy); display: block;">${escapeHtml(pharmName)}</strong>
+                                <div style="font-size: 11px; color: var(--text-secondary);">Owner: ${escapeHtml(ownerName)} • App #${app.id}</div>
+                            </td>
+                            <td>
+                                <div style="font-size: 13px; color: var(--navy); font-weight: 500;">${escapeHtml(app.email)}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(app.phone || '-')}</div>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 12px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155;">
+                                    ${escapeHtml(lic)}
+                                </span>
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-secondary); max-width: 220px;">
+                                ${escapeHtml(addr)}
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">
+                                ${app.submittedAt ? app.submittedAt.substring(0, 16) : '-'}
+                            </td>
+                            <td>${statusBadge}</td>
+                            <td style="text-align: right;">
+                                ${isPending ? `
+                                    <div class="flex gap-2" style="justify-content: flex-end;">
+                                        <button class="btn btn-sm btn-success" style="background: #10b981; color: white; border: none; font-size: 12px; padding: 4px 10px;" onclick="openApproveModal(${app.id})">
+                                            ✓ Approve
+                                        </button>
+                                        <button class="btn btn-sm btn-danger-outline" style="font-size: 12px; padding: 4px 10px;" onclick="openRejectModal(${app.id})">
+                                            ✕ Reject
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">
+                                        ${app.status === 'APPROVED' ? 'Active' : (app.rejectionReason ? 'Reason: ' + escapeHtml(app.rejectionReason) : 'Processed')}
+                                    </span>
+                                `}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        function openApproveModal(id) {
+            const app = currentApplications.find(a => a.id === id);
+            if (!app) return;
+            selectedApp = app;
+            const details = app.details || {};
+            const name = details.pharmacyName || app.applicantName;
+            document.getElementById('approve-pharm-name').innerText = name;
+            document.getElementById('approve-modal').classList.add('open');
+        }
+
+        function closeApproveModal() {
+            document.getElementById('approve-modal').classList.remove('open');
+            selectedApp = null;
+        }
+
+        async function confirmApprove() {
+            if (!selectedApp) return;
+            const btn = document.getElementById('btn-confirm-approve');
+            btn.disabled = true;
+            btn.innerText = 'Approving...';
+
+            try {
+                const res = await window.api.approvePharmacyApplication(selectedApp.id);
+                window.toast.success(res.message || `Pharmacy approved successfully!`);
+                closeApproveModal();
+                loadApplications();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to approve pharmacy.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Approve Pharmacy';
+            }
+        }
+
+        function openRejectModal(id) {
+            const app = currentApplications.find(a => a.id === id);
+            if (!app) return;
+            selectedApp = app;
+            const details = app.details || {};
+            const name = details.pharmacyName || app.applicantName;
+            document.getElementById('reject-pharm-name').innerText = name;
+            document.getElementById('reject-reason-input').value = '';
+            document.getElementById('reject-modal').classList.add('open');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('reject-modal').classList.remove('open');
+            selectedApp = null;
+        }
+
+        async function confirmReject() {
+            if (!selectedApp) return;
+            const btn = document.getElementById('btn-confirm-reject');
+            const reason = document.getElementById('reject-reason-input').value.trim();
+            btn.disabled = true;
+            btn.innerText = 'Rejecting...';
+
+            try {
+                const res = await window.api.rejectPharmacyApplication(selectedApp.id, reason);
+                window.toast.success(res.message || `Application for ${selectedApp.applicantName} rejected.`);
+                closeRejectModal();
+                loadApplications();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to reject application.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Reject Application';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

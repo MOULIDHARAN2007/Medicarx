@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients Directory — MediCareX Doctor</title>
+    <meta name="description" content="Manage patient clinical profiles, medical history, and issue digital prescriptions.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Patient Directory</h1>
+                        <p class="page-subtitle">Manage registered patients, clinical history, and OPD consultations</p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary" onclick="window.EmergencyScanner.openScanner({ role: 'DOCTOR' })" style="font-weight: 700;">
+                            📷 Scan Emergency QR
+                        </button>
+                        <button class="btn btn-primary" onclick="openAddPatientModal()">
+                            + Add New Patient
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Filters Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                        <div class="topbar-search" style="width: 340px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="pat-search-in" placeholder="Search patients by name, phone, or email..." oninput="loadPatients()" />
+                        </div>
+
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" id="pat-count-text">
+                            Loading patients...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patients Data Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Contact Details</th>
+                                    <th>Age / DOB</th>
+                                    <th>Gender</th>
+                                    <th>Blood Group</th>
+                                    <th>Insurance Provider</th>
+                                    <th>Clinical Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patients-tbody">
+                                <tr>
+                                    <td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading patient records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Patient Modal -->
+    <div class="modal-overlay" id="add-patient-modal">
+        <div class="modal-container" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Register New Patient</h3>
+                <button class="btn-icon" onclick="closeAddPatientModal()">✕</button>
+            </div>
+            <form id="add-patient-form">
+                <div class="modal-body">
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-name">Full Name</label>
+                            <input type="text" id="add-pat-name" class="form-input" placeholder="e.g. Rahul Sharma" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-email">Email Address</label>
+                            <input type="email" id="add-pat-email" class="form-input" placeholder="name@example.com" required />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-phone">Phone Number</label>
+                            <input type="tel" id="add-pat-phone" class="form-input" placeholder="+91 98765 43210" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-dob">Date of Birth</label>
+                            <input type="date" id="add-pat-dob" class="form-input" value="1995-06-15" required />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-gender">Gender</label>
+                            <select id="add-pat-gender" class="form-select">
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-blood">Blood Group</label>
+                            <select id="add-pat-blood" class="form-select">
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="add-pat-addr">Residential Address</label>
+                        <input type="text" id="add-pat-addr" class="form-input" placeholder="Indiranagar, Bangalore" />
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-emerg">Emergency Contact</label>
+                            <input type="text" id="add-pat-emerg" class="form-input" placeholder="+91 98765 00000" />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="add-pat-ins">Insurance Provider</label>
+                            <input type="text" id="add-pat-ins" class="form-input" placeholder="Star Health Insurance" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddPatientModal()">Cancel</button>
+                    <button type="submit" id="btn-submit-add-pat" class="btn btn-primary">Create Patient Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/libs/html5-qrcode.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/emergency-scanner.js"></script>
+    <script>
+        let patientList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-patients');
+            loadPatients();
+        });
+
+        async function loadPatients() {
+            const tbody = document.getElementById('patients-tbody');
+            const search = document.getElementById('pat-search-in').value.toLowerCase().trim();
+
+            try {
+                const res = await window.api.getDoctorPatients();
+                let list = res.data || [];
+
+                if (search) {
+                    list = list.filter(p => (p.fullName && p.fullName.toLowerCase().includes(search)) ||
+                                            (p.email && p.email.toLowerCase().includes(search)) ||
+                                            (p.phone && p.phone.includes(search)));
+                }
+
+                patientList = list;
+                document.getElementById('pat-count-text').innerText = `${list.length} Patient Record${list.length === 1 ? '' : 's'}`;
+
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-muted);">No patients found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(p => `
+                    <tr>
+                        <td>
+                            <div class="flex items-center gap-3">
+                                <img src="${p.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" alt="Avatar" class="user-avatar-sm" style="width: 36px; height: 36px;" />
+                                <div>
+                                    <strong style="color: var(--navy); font-size: 14px;">${p.fullName}</strong>
+                                    <div style="font-size: 11px; color: var(--text-muted);">ID: #PAT-${p.id}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px; color: var(--navy); font-weight: 500;">${p.phone || '-'}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${p.email}</div>
+                        </td>
+                        <td style="font-size: 13px;">${p.dob || '1996-05-14'}</td>
+                        <td><span class="badge badge-gray">${p.gender || 'Female'}</span></td>
+                        <td><span class="badge badge-blue">${p.bloodGroup || 'O+'}</span></td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">${p.insuranceProvider || 'Star Health'}</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="window.location.href='/doctor-patient-overview.html?patientId=${p.id}'" style="background: #2563EB;">Overview</button>
+                                <button class="btn btn-sm btn-secondary" onclick="window.location.href='/records.html'">Records</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function openAddPatientModal() {
+            document.getElementById('add-patient-modal').classList.add('open');
+        }
+
+        function closeAddPatientModal() {
+            document.getElementById('add-patient-modal').classList.remove('open');
+        }
+
+        document.getElementById('add-patient-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-add-pat');
+            btn.disabled = true;
+            btn.innerText = 'Creating Patient...';
+
+            const payload = {
+                fullName: document.getElementById('add-pat-name').value.trim(),
+                email: document.getElementById('add-pat-email').value.trim(),
+                phone: document.getElementById('add-pat-phone').value.trim(),
+                dob: document.getElementById('add-pat-dob').value,
+                gender: document.getElementById('add-pat-gender').value,
+                bloodGroup: document.getElementById('add-pat-blood').value,
+                address: document.getElementById('add-pat-addr').value.trim(),
+                emergencyContact: document.getElementById('add-pat-emerg').value.trim(),
+                insuranceProvider: document.getElementById('add-pat-ins').value.trim()
+            };
+
+            try {
+                await window.api.addDoctorPatient(payload);
+                window.toast.success('Patient registered successfully!');
+                closeAddPatientModal();
+                document.getElementById('add-patient-form').reset();
+                loadPatients();
+            } catch (err) {
+                window.toast.error(err.message || 'Error registering patient');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Create Patient Record';
+            }
+        });
+    </script>
+</body>
+</html>

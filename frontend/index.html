@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediCareX — Smarter Healthcare. Better Access.</title>
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = window.api.getToken();
+            const user = window.api.getCurrentUser();
+            if (token && user) {
+                const role = (user.role || 'PATIENT').toUpperCase();
+                if (role === 'DOCTOR') window.location.href = '/doctor-dashboard.html';
+                else if (role === 'PHARMACY') window.location.href = '/pharmacy-dashboard.html';
+                else if (role === 'ADMIN') window.location.href = '/admin-dashboard.html';
+                else if (role === 'AMBULANCE') window.location.href = '/ambulance-dashboard.html';
+                else window.location.href = '/dashboard.html';
+            } else {
+                window.location.href = '/login.html';
+            }
+        });
+    </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc;">
+    <div style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #0f172a; margin-bottom: 0.5rem;">MediCare<span style="color: #2563eb;">X</span></div>
+        <p style="color: #64748b;">Loading healthcare platform...</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Requests Queue — MediCareX Ambulance</title>
+    <meta name="description" content="View and accept incoming emergency dispatch requests in real-time.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header flex justify-between items-center flex-wrap gap-4 mb-4">
+                    <div>
+                        <h1 class="page-title">Emergency Requests Queue</h1>
+                        <p class="page-subtitle">Incoming emergency dispatches in your service radius awaiting responder assignment</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="btn btn-outline" onclick="loadRequests()">
+                            <span>↻ Refresh Queue</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header flex justify-between items-center flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-primary" style="font-weight: 700;">LIVE DISPATCH POOL</span>
+                            <span id="requests-count-badge" class="badge badge-gray">0 requests</span>
+                        </div>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Auto-refreshes every 5s</span>
+                    </div>
+
+                    <div id="requests-table-container" class="table-responsive">
+                        <div class="text-center py-8 text-muted">
+                            <div class="spinner mb-2"></div>
+                            <p style="margin: 0;">Scanning for emergency requests...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        let pollTimer = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('ambulance-requests');
+            loadRequests();
+            startPolling();
+        });
+
+        async function loadRequests() {
+            try {
+                const res = await window.api.getDriverEmergencyRequests();
+                const data = res.data || {};
+                const pool = data.pendingPool || [];
+
+                document.getElementById('requests-count-badge').innerText = `${pool.length} pending`;
+
+                renderRequests(pool);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderRequests(pool) {
+            const container = document.getElementById('requests-table-container');
+            if (!pool || pool.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted" style="font-size: 13.5px;">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚑</div>
+                        <strong style="color: var(--navy); display: block; margin-bottom: 0.25rem;">No pending emergency requests</strong>
+                        <p style="margin: 0; color: var(--text-secondary); max-width: 440px; margin-inline: auto;">
+                            There are currently no unassigned emergency requests in your radius. You will be notified immediately when a patient requests emergency assistance.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Patient / Caller</th>
+                            <th>Emergency Type</th>
+                            <th>Severity</th>
+                            <th>Pickup Location</th>
+                            <th>Notes</th>
+                            <th>Requested</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pool.map(p => `
+                            <tr>
+                                <td><span class="badge badge-blue font-bold">#${p.id}</span></td>
+                                <td>
+                                    <div class="font-bold" style="color: var(--navy); font-size: 13px;">${escapeHtml(p.patientName || 'Emergency Patient')}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">📞 ${escapeHtml(p.contactPhone || 'N/A')}</div>
+                                </td>
+                                <td><span class="badge badge-danger uppercase font-bold">${escapeHtml(p.emergencyType || 'GENERAL')}</span></td>
+                                <td><span class="badge badge-warning uppercase font-bold">${escapeHtml(p.severity || 'CRITICAL')}</span></td>
+                                <td style="font-size: 12.5px; max-width: 220px;">
+                                    <div>📍 ${escapeHtml(p.pickupAddress || 'GPS Location')}</div>
+                                    ${p.landmark ? `<div style="font-size: 11px; color: var(--text-muted);">Near: ${escapeHtml(p.landmark)}</div>` : ''}
+                                </td>
+                                <td style="font-size: 12px; color: var(--text-secondary); max-width: 180px;">${escapeHtml(p.patientNotes || 'None')}</td>
+                                <td style="font-size: 12px; color: var(--text-muted);">${escapeHtml(p.requestedAt || 'Just now')}</td>
+                                <td style="text-align: right;">
+                                    <button class="btn btn-sm btn-primary" onclick="acceptRequest(${p.id})">
+                                        Accept Dispatch
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function acceptRequest(id) {
+            try {
+                await window.api.acceptEmergencyRequest(id);
+                window.toast.success('Emergency dispatch accepted! Redirecting to Active Emergency...');
+                setTimeout(() => {
+                    window.location.href = '/ambulance-active-emergency.html';
+                }, 700);
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to accept dispatch');
+            }
+        }
+
+        function startPolling() {
+            if (!pollTimer) {
+                pollTimer = setInterval(loadRequests, 5000);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

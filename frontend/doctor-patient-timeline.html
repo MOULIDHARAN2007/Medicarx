@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Health Timeline — MediCareX Doctor</title>
+    <meta name="description" content="Unified chronological medical history, clinical consultations, digital prescriptions, and diagnostic lab reports.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .timeline-container {
+            position: relative;
+            padding-left: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background: #E2E8F0;
+        }
+
+        .timeline-event-card {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -2rem;
+            top: 4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #FFFFFF;
+            border: 2px solid var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            box-shadow: 0 0 0 3px #EFF6FF;
+        }
+
+        .timeline-dot.dot-rx { border-color: #2563EB; box-shadow: 0 0 0 3px #EFF6FF; }
+        .timeline-dot.dot-appt { border-color: #10B981; box-shadow: 0 0 0 3px #ECFDF5; }
+        .timeline-dot.dot-record { border-color: #8B5CF6; box-shadow: 0 0 0 3px #F5F3FF; }
+        .timeline-dot.dot-lab { border-color: #F59E0B; box-shadow: 0 0 0 3px #FFFBEB; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Shared Patient Context Header -->
+                <div id="patient-context-banner"></div>
+
+                <!-- Timeline Filters & Header -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h3 style="font-size: 1.1rem; color: var(--navy); margin: 0;">📅 Chronological Health Timeline</h3>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0.2rem 0 0 0;">Unified longitudinal electronic health timeline</p>
+                        </div>
+
+                        <!-- Filter Pills -->
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-primary timeline-filter-btn" onclick="filterTimeline('ALL', this)">All Events</button>
+                            <button class="btn btn-sm btn-outline timeline-filter-btn" onclick="filterTimeline('PRESCRIPTION', this)">Prescriptions</button>
+                            <button class="btn btn-sm btn-outline timeline-filter-btn" onclick="filterTimeline('APPOINTMENT', this)">Appointments</button>
+                            <button class="btn btn-sm btn-outline timeline-filter-btn" onclick="filterTimeline('HEALTH_RECORD', this)">Health Records</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Feed -->
+                <div class="card p-4">
+                    <div id="timeline-feed-root" class="timeline-container">
+                        <p style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading health timeline events...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/doctor-context.js"></script>
+    <script>
+        let currentPatientId = 1;
+        let currentPatientData = null;
+        let allTimelineEvents = [];
+        let activeFilter = 'ALL';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('doctor-patient-timeline');
+            currentPatientId = window.DoctorContext.getSelectedPatientId();
+            loadPatientTimeline(currentPatientId);
+        });
+
+        async function loadPatientTimeline(patientId) {
+            currentPatientId = patientId;
+            try {
+                // Fetch overview for header context
+                const resOverview = await window.api.getDoctorPatientOverview(patientId);
+                const overviewData = resOverview.data || {};
+                currentPatientData = overviewData.patient || {};
+
+                window.DoctorContext.renderPatientHeader('patient-context-banner', currentPatientData, 'timeline');
+                window.DoctorContext.loadPatientsRoster('doctor-patient-switcher', currentPatientId, (newId) => {
+                    loadPatientTimeline(newId);
+                });
+
+                // Fetch dedicated chronological timeline events
+                const resTimeline = await window.api.getDoctorPatientTimeline(patientId, { limit: 50 });
+                const timelineData = resTimeline.data || {};
+                allTimelineEvents = timelineData.events || [];
+
+                renderTimelineFeed();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('timeline-feed-root').innerHTML = `
+                    <p style="color: var(--danger); text-align: center; padding: 2rem;">Error loading timeline: ${err.message}</p>
+                `;
+            }
+        }
+
+        function filterTimeline(filterKey, btn) {
+            activeFilter = filterKey;
+            document.querySelectorAll('.timeline-filter-btn').forEach(b => {
+                b.className = 'btn btn-sm btn-outline timeline-filter-btn';
+            });
+            if (btn) {
+                btn.className = 'btn btn-sm btn-primary timeline-filter-btn';
+            }
+            renderTimelineFeed();
+        }
+
+        function renderTimelineFeed() {
+            const root = document.getElementById('timeline-feed-root');
+
+            let filtered = allTimelineEvents;
+            if (activeFilter !== 'ALL') {
+                filtered = allTimelineEvents.filter(e => (e.category || '').toUpperCase().includes(activeFilter));
+            }
+
+            if (filtered.length === 0) {
+                root.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📅</div>
+                        <h4 style="margin: 0; color: var(--navy);">No Timeline Events Found</h4>
+                        <p style="font-size: 13px; margin: 0.25rem 0 0 0;">No recorded events matching '${activeFilter}' for this patient.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            root.innerHTML = filtered.map(e => {
+                const cat = (e.category || 'EVENT').toUpperCase();
+                let dotClass = 'dot-appt';
+                let dotIcon = '🩺';
+                let badgeClass = 'badge-primary';
+
+                if (cat.includes('PRESCRIPTION') || cat.includes('RX')) {
+                    dotClass = 'dot-rx';
+                    dotIcon = '💊';
+                    badgeClass = 'badge-blue';
+                } else if (cat.includes('LAB') || cat.includes('DIAGNOSTIC')) {
+                    dotClass = 'dot-lab';
+                    dotIcon = '🔬';
+                    badgeClass = 'badge-warning';
+                } else if (cat.includes('RECORD')) {
+                    dotClass = 'dot-record';
+                    dotIcon = '📂';
+                    badgeClass = 'badge-purple';
+                }
+
+                return `
+                    <div class="timeline-event-card">
+                        <div class="timeline-dot ${dotClass}">${dotIcon}</div>
+                        <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <strong style="font-size: 14px; color: var(--navy);">${e.title}</strong>
+                                    <span class="badge ${badgeClass}" style="font-size: 11px;">${e.category}</span>
+                                </div>
+                                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">${e.eventDate}</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-main); margin: 0.4rem 0 0 0; line-height: 1.5;">
+                                ${e.description || e.notes || 'Recorded in electronic clinical system.'}
+                            </p>
+                            ${e.doctorName ? `<div style="font-size: 11.5px; color: var(--text-muted); margin-top: 0.35rem;">Attending Physician: Dr. ${e.doctorName}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

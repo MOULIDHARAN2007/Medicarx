@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Fleet Management — MediCareX Admin</title>
+    <meta name="description" content="Centralized fleet oversight, vehicle registration, paramedic driver assignment, and emergency response audit.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Ambulance Fleet & Emergency Operations</h1>
+                    <p class="text-muted">Manage hospital ambulance fleet, paramedic assignments, and live emergency dispatch logs.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openAddAmbulanceModal()">
+                    <span>✚ Register Ambulance Unit</span>
+                </button>
+            </div>
+
+            <!-- Fleet Metrics -->
+            <div class="grid grid-cols-4 gap-4 mt-6">
+                <div class="card p-4">
+                    <div class="text-xs text-muted uppercase font-bold tracking-wider">Total Fleet Units</div>
+                    <div class="text-2xl font-bold mt-1" id="stat-total-fleet">0</div>
+                    <div class="text-xs text-muted mt-1">Registered vehicles</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted uppercase font-bold tracking-wider">Available On Standby</div>
+                    <div class="text-2xl font-bold text-emerald-600 mt-1" id="stat-available-fleet">0</div>
+                    <div class="text-xs text-muted mt-1">Ready for immediate dispatch</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted uppercase font-bold tracking-wider">Active Missions</div>
+                    <div class="text-2xl font-bold text-amber-600 mt-1" id="stat-active-missions">0</div>
+                    <div class="text-xs text-muted mt-1">En route or transporting</div>
+                </div>
+                <div class="card p-4">
+                    <div class="text-xs text-muted uppercase font-bold tracking-wider">Completed Trips</div>
+                    <div class="text-2xl font-bold text-blue-600 mt-1" id="stat-completed-trips">0</div>
+                    <div class="text-xs text-muted mt-1">Safely delivered to ER</div>
+                </div>
+            </div>
+
+            <!-- Fleet Table -->
+            <div class="card mt-6">
+                <div class="card-header flex justify-between items-center">
+                    <h3 class="card-title">Registered Ambulance Vehicles</h3>
+                    <button class="btn btn-sm btn-secondary" onclick="loadFleet()">
+                        <span>↻ Refresh</span>
+                    </button>
+                </div>
+
+                <div id="fleet-container" class="table-responsive">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading ambulance fleet...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Requests Audit Log -->
+            <div class="card mt-8">
+                <div class="card-header flex justify-between items-center flex-wrap gap-3">
+                    <div>
+                        <h3 class="card-title">Emergency Requests Audit Log</h3>
+                        <p class="text-xs text-muted">Real-time log of all SOS requests, allocations, and response milestones.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-muted" for="status-filter">Status Filter:</label>
+                        <select id="status-filter" class="form-control form-control-sm" onchange="loadEmergencyAudit()" style="width: 150px;">
+                            <option value="ALL">All Statuses</option>
+                            <option value="REQUESTED">Requested</option>
+                            <option value="ASSIGNED">Assigned</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="EN_ROUTE">En Route</option>
+                            <option value="ARRIVED">Arrived</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="audit-container" class="table-responsive">
+                    <div class="text-center py-8 text-muted">
+                        <div class="spinner mb-2"></div>
+                        <p>Loading emergency requests log...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <!-- Add/Edit Ambulance Modal -->
+    <div class="modal-overlay" id="amb-modal">
+        <div class="modal-container" style="max-width: 580px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="amb-modal-title" style="color: var(--navy);">Register New Ambulance</h3>
+                <button class="btn-icon" onclick="closeAmbulanceModal()" aria-label="Close modal">✕</button>
+            </div>
+            <form id="amb-form">
+                <input type="hidden" id="amb-id" />
+                <div class="modal-body space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="amb-reg-no">Vehicle Registration Number *</label>
+                            <input type="text" id="amb-reg-no" class="form-input" placeholder="e.g. TN-01-AM-1008" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amb-reg-type">Vehicle Type *</label>
+                            <select id="amb-reg-type" class="form-select" required>
+                                <option value="BASIC">Basic Life Support (BLS)</option>
+                                <option value="ADVANCED_LIFE_SUPPORT" selected>Advanced Life Support (ALS)</option>
+                                <option value="ICU">Mobile ICU Ambulance</option>
+                                <option value="PATIENT_TRANSPORT">Patient Transport Vehicle</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="amb-driver-input">Primary Paramedic / Driver *</label>
+                            <input type="text" id="amb-driver-input" class="form-input" placeholder="e.g. Ramesh Kumar" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amb-phone-input">Driver Contact Phone *</label>
+                            <input type="tel" id="amb-phone-input" class="form-input" placeholder="e.g. +91 98401 23456" required />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="form-group">
+                            <label class="form-label" for="amb-affiliation-input">Hospital Affiliation</label>
+                            <input type="text" id="amb-affiliation-input" class="form-input" placeholder="e.g. Apollo Main Hospital Trauma Care" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amb-status-input">Initial Status</label>
+                            <select id="amb-status-input" class="form-select">
+                                <option value="AVAILABLE" selected>Available (Ready for Dispatch)</option>
+                                <option value="MAINTENANCE">Maintenance</option>
+                                <option value="OFFLINE">Offline</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="amb-equipment-input">Onboard Equipment Summary</label>
+                        <input type="text" id="amb-equipment-input" class="form-input" placeholder="e.g. Ventilator, Defibrillator, Portable Oxygen, ECG Monitor" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAmbulanceModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Ambulance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('admin-ambulances');
+            loadFleet();
+            loadEmergencyAudit();
+        });
+
+        async function loadFleet() {
+            const container = document.getElementById('fleet-container');
+            try {
+                const res = await window.api.getAdminAmbulances();
+                const fleet = res.data || [];
+                renderFleet(fleet);
+
+                const statsRes = await window.api.getAdminEmergencyStats();
+                const stats = statsRes.data || {};
+                document.getElementById('stat-total-fleet').textContent = stats.totalFleet || fleet.length;
+                document.getElementById('stat-available-fleet').textContent = stats.availableUnits || 0;
+                document.getElementById('stat-active-missions').textContent = stats.busyUnits || stats.activeEmergencies || 0;
+                document.getElementById('stat-completed-trips').textContent = stats.completedTrips || 0;
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-6 text-danger">Failed to load fleet.</div>`;
+            }
+        }
+
+        function renderFleet(fleet) {
+            const container = document.getElementById('fleet-container');
+            if (fleet.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted">
+                        <p>No ambulances registered in the system yet.</p>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="openAddAmbulanceModal()">Register First Ambulance</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle Number</th>
+                            <th>Type</th>
+                            <th>Paramedic Driver</th>
+                            <th>Hospital Affiliation</th>
+                            <th>Equipment</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fleet.map(a => `
+                            <tr>
+                                <td><strong class="text-primary font-mono">${escapeHtml(a.vehicleNumber)}</strong></td>
+                                <td><span class="badge badge-info text-xs">${escapeHtml((a.vehicleType || 'BASIC').replace(/_/g, ' '))}</span></td>
+                                <td>
+                                    <div class="font-medium">${escapeHtml(a.driverName || 'Not Assigned')}</div>
+                                    <div class="text-xs text-muted">${escapeHtml(a.driverPhone || '')}</div>
+                                </td>
+                                <td class="text-sm">${escapeHtml(a.hospitalAffiliation || 'Central Hospital')}</td>
+                                <td class="text-xs text-muted max-w-xs truncate">${escapeHtml(a.equipmentSummary || 'Standard Medical Kit')}</td>
+                                <td>
+                                    <span class="badge ${a.status === 'AVAILABLE' ? 'badge-success' : (a.status === 'BUSY' ? 'badge-danger' : 'badge-secondary')}">
+                                        ${escapeHtml(a.status)}
+                                    </span>
+                                </td>
+                                <td class="text-right">
+                                    <button class="btn btn-sm btn-secondary" onclick="editAmbulance(${JSON.stringify(a).replace(/"/g, '&quot;')})">Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteAmbulance(${a.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function loadEmergencyAudit() {
+            const container = document.getElementById('audit-container');
+            const status = document.getElementById('status-filter').value;
+            try {
+                const res = await window.api.getAdminEmergencyRequests({ status });
+                const list = res.data || [];
+                renderAudit(list);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-6 text-danger">Failed to load audit logs.</div>`;
+            }
+        }
+
+        function renderAudit(list) {
+            const container = document.getElementById('audit-container');
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted">
+                        <p>No emergency requests found for this filter.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Emergency Type</th>
+                            <th>Severity</th>
+                            <th>Pickup Location</th>
+                            <th>Assigned Vehicle</th>
+                            <th>Status</th>
+                            <th>Requested At</th>
+                            <th>Completed At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(r => `
+                            <tr>
+                                <td>
+                                    <div class="font-bold">${escapeHtml(r.patientName || 'Patient #' + r.patientId)}</div>
+                                    <div class="text-xs text-muted">${escapeHtml(r.contactPhone || '')}</div>
+                                </td>
+                                <td><span class="badge badge-danger">${escapeHtml(r.emergencyType || 'GENERAL')}</span></td>
+                                <td><span class="badge badge-warning">${escapeHtml(r.severity || 'CRITICAL')}</span></td>
+                                <td class="text-xs">${escapeHtml(r.pickupAddress || '')}</td>
+                                <td><strong class="font-mono text-primary text-xs">${escapeHtml(r.ambulanceVehicleNumber || 'Pending')}</strong></td>
+                                <td>
+                                    <span class="badge ${r.status === 'COMPLETED' ? 'badge-success' : (r.status === 'CANCELLED' ? 'badge-secondary' : 'badge-danger')}">
+                                        ${escapeHtml(r.status)}
+                                    </span>
+                                </td>
+                                <td class="text-xs text-muted">${escapeHtml(r.requestedAt || '')}</td>
+                                <td class="text-xs text-muted">${escapeHtml(r.completedAt || r.cancelledAt || 'In Progress')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function openAddAmbulanceModal() {
+            document.getElementById('amb-id').value = '';
+            document.getElementById('amb-form').reset();
+            document.getElementById('amb-modal-title').textContent = 'Register New Ambulance';
+            document.getElementById('amb-modal').classList.add('open');
+        }
+
+        function closeAmbulanceModal() {
+            document.getElementById('amb-modal').classList.remove('open');
+        }
+
+        function editAmbulance(a) {
+            document.getElementById('amb-id').value = a.id;
+            document.getElementById('amb-reg-no').value = a.vehicleNumber || '';
+            document.getElementById('amb-reg-type').value = a.vehicleType || 'BASIC';
+            document.getElementById('amb-driver-input').value = a.driverName || '';
+            document.getElementById('amb-phone-input').value = a.driverPhone || '';
+            document.getElementById('amb-affiliation-input').value = a.hospitalAffiliation || '';
+            document.getElementById('amb-status-input').value = a.status || 'AVAILABLE';
+            document.getElementById('amb-equipment-input').value = a.equipmentSummary || '';
+            document.getElementById('amb-modal-title').textContent = 'Edit Ambulance Unit';
+            document.getElementById('amb-modal').classList.add('open');
+        }
+
+        document.getElementById('amb-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('amb-id').value;
+            const data = {
+                vehicleNumber: document.getElementById('amb-reg-no').value.trim(),
+                vehicleType: document.getElementById('amb-reg-type').value,
+                driverName: document.getElementById('amb-driver-input').value.trim(),
+                driverPhone: document.getElementById('amb-phone-input').value.trim(),
+                hospitalAffiliation: document.getElementById('amb-affiliation-input').value.trim(),
+                status: document.getElementById('amb-status-input').value,
+                equipmentSummary: document.getElementById('amb-equipment-input').value.trim()
+            };
+
+            try {
+                if (id) {
+                    await window.api.updateAdminAmbulance(id, data);
+                    window.toast.success('Ambulance updated successfully');
+                } else {
+                    await window.api.createAdminAmbulance(data);
+                    window.toast.success('Ambulance registered successfully');
+                }
+                closeAmbulanceModal();
+                loadFleet();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to save ambulance');
+            }
+        });
+
+        async function deleteAmbulance(id) {
+            if (!confirm('Are you sure you want to delete this ambulance unit?')) return;
+            try {
+                await window.api.deleteAdminAmbulance(id);
+                window.toast.info('Ambulance deleted');
+                loadFleet();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to delete ambulance');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

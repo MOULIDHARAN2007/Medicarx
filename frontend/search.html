@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Search & Prescription OCR — MediCareX</title>
+    <meta name="description" content="Search verified medicines by brand name, generic formula, and therapeutic category with live pharmacy availability, or upload your prescription for instant AI OCR extraction.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .search-mode-tabs {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .search-mode-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .search-mode-tab:hover {
+            color: var(--primary-blue);
+            background: rgba(37, 99, 235, 0.05);
+        }
+        .search-mode-tab.active {
+            color: #fff;
+            background: var(--primary-blue);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+        .upload-dropzone {
+            border: 2px dashed #93c5fd;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--primary-blue);
+            background: #eff6ff;
+            transform: scale(1.005);
+        }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .progress-step.active {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+        .progress-step.done {
+            color: var(--success);
+            font-weight: 500;
+        }
+        .medicine-extract-card {
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .medicine-extract-card:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .medicine-extract-card.needs-review {
+            border-left: 4px solid #f59e0b;
+            background: #fffdfa;
+        }
+        .medicine-extract-card.matched {
+            border-left: 4px solid #10b981;
+        }
+        .pharmacy-match-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+        }
+        .pharmacy-match-card:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+        .stock-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .stock-pill.in-stock {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .stock-pill.out-of-stock {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .disclaimer-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            font-size: 12px;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+        @media (max-width: 768px) {
+            #review-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .search-mode-tabs {
+                gap: 0.35rem;
+            }
+            .search-mode-tab {
+                padding: 0.5rem 0.875rem;
+                font-size: 13px;
+                flex: 1;
+                justify-content: center;
+            }
+            .upload-dropzone {
+                padding: 1.5rem 1rem;
+            }
+        }
+        @media (max-width: 640px) {
+            .medicine-extract-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .medicine-extract-card > div:last-child {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .pharmacy-match-card > div:first-child {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Topbar Header -->
+            <header class="topbar" id="app-topbar"></header>
+
+            <!-- Page Body -->
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Find Your Medicine</h1>
+                        <p class="page-subtitle">Search verified medicines or upload a prescription for instant digital extraction & live stock matching</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs: Manual Search vs Prescription Upload -->
+                <div class="search-mode-tabs">
+                    <button class="search-mode-tab active" id="tab-btn-manual" onclick="switchMode('manual')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Search Catalog
+                    </button>
+                    <button class="search-mode-tab" id="tab-btn-upload" onclick="switchMode('upload')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload Prescription
+                    </button>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- SECTION 1: PRESCRIPTION UPLOAD & EXTRACTION INTERFACE        -->
+                <!-- ============================================================ -->
+                <div id="prescription-upload-section" style="display: none; margin-bottom: 2rem;">
+                    
+                    <!-- Upload Dropzone Card -->
+                    <div class="card" id="upload-card" style="padding: 2rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="color: var(--navy); margin-bottom: 0.35rem; font-size: 1.25rem;">Upload Prescription</h3>
+                                <p style="color: var(--text-secondary); font-size: 13px;">
+                                    Upload your prescription and MediCareX will extract verified medicine names and match nearby pharmacy stock.
+                                </p>
+                            </div>
+                            <span class="badge badge-blue" style="font-size: 11px;">AI OCR Powered</span>
+                        </div>
+
+                        <!-- Dropzone Area -->
+                        <div class="upload-dropzone" id="drop-zone" onclick="document.getElementById('prescription-file-input').click()">
+                            <input type="file" id="prescription-file-input" style="display: none;" accept=".pdf,.png,.jpg,.jpeg" onchange="handleFileSelected(event)" />
+                            
+                            <div style="font-size: 2.75rem; margin-bottom: 0.75rem; color: var(--primary-blue);">📄</div>
+                            <h4 style="color: var(--navy); margin-bottom: 0.4rem; font-size: 16px;">Drag & Drop Prescription Here</h4>
+                            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 1rem;">or browse files from your computer or phone</p>
+                            
+                            <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('prescription-file-input').click();" style="padding: 0.55rem 1.5rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Browse Files
+                            </button>
+
+                            <div style="margin-top: 1.25rem; font-size: 11px; color: var(--text-muted); display: flex; justify-content: center; gap: 1.5rem;">
+                                <span>✓ Supported: <strong>PDF, JPG, JPEG, PNG</strong></span>
+                                <span>✓ Maximum file size: <strong>10 MB</strong></span>
+                                <span>✓ Safe & Encrypted</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress / Loading State -->
+                        <div id="upload-progress-container" style="display: none; margin-top: 1.5rem; padding: 1.5rem; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <h4 style="color: var(--navy); margin-bottom: 1rem; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                                <span class="spinner" style="width: 16px; height: 16px; border: 2px solid #cbd5e1; border-top-color: var(--primary-blue); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block;"></span>
+                                Processing Prescription Document...
+                            </h4>
+
+                            <div class="progress-step active" id="step-1">
+                                <span>1.</span> <span>Uploading document securely...</span>
+                            </div>
+                            <div class="progress-step" id="step-2">
+                                <span>2.</span> <span>Running OCR text & handwriting extraction...</span>
+                            </div>
+                            <div class="progress-step" id="step-3">
+                                <span>3.</span> <span>Identifying medicines & matching MediCareX catalog...</span>
+                            </div>
+                            <div class="progress-step" id="step-4">
+                                <span>4.</span> <span>Preparing confirmation review...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extracted Review & Confirmation Container (Side-by-Side or Stacked) -->
+                    <div id="extraction-review-container" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.5rem; align-items: start;" id="review-grid">
+                            
+                            <!-- Left: Original Document Preview -->
+                            <div class="card" style="padding: 1.5rem;">
+                                <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                                    <h3 style="color: var(--navy); font-size: 15px; font-weight: 700;">Prescription Document</h3>
+                                    <span class="badge badge-gray" id="preview-file-type">PDF</span>
+                                </div>
+
+                                <div id="preview-media-container" style="background: #f1f5f9; border-radius: 8px; min-height: 280px; max-height: 480px; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 0.5rem; border: 1px solid var(--border-color);">
+                                    <img id="preview-img" src="" alt="Prescription Preview" style="max-width: 100%; border-radius: 6px; display: none;" />
+                                    <div id="preview-pdf-box" style="text-align: center; padding: 2rem; display: none;">
+                                        <div style="font-size: 3rem; margin-bottom: 0.5rem;">📑</div>
+                                        <div style="font-weight: 600; color: var(--navy);" id="preview-pdf-name">prescription.pdf</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" id="preview-pdf-size">1.2 MB</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2" style="margin-top: 1rem;">
+                                    <button class="btn btn-outline btn-sm" id="btn-view-orig" style="flex: 1;" onclick="openOriginalPrescription()">
+                                        View Full
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" id="btn-download-orig" style="flex: 1;" onclick="downloadOriginalPrescription()">
+                                        Download Original
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Right: Extracted Medicines List & Confirmation -->
+                            <div class="card" style="padding: 1.5rem;">
+                                <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                                    <div>
+                                        <h3 style="color: var(--navy); font-size: 16px; font-weight: 700;">Prescription Medicines Found</h3>
+                                        <p style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;">Review and confirm the medicines extracted from your prescription before searching.</p>
+                                    </div>
+                                    <button class="btn btn-outline btn-sm" onclick="openAddMedicineModal()">+ Add Missing</button>
+                                </div>
+
+                                <!-- Medicines List -->
+                                <div id="extracted-medicines-list"></div>
+
+                                <!-- Warnings Banner (if any) -->
+                                <div id="extraction-warnings-banner" style="display: none; margin-top: 0.75rem;"></div>
+
+                                <!-- Safety Disclaimer -->
+                                <div class="disclaimer-box">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                    <span>Extracted from prescription — verify with your prescription/doctor before purchasing.</span>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex justify-between items-center" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+                                    <button class="btn btn-outline" onclick="resetUploadFlow()">Upload Another</button>
+                                    <button class="btn btn-primary" id="btn-search-pharmacies" onclick="searchPharmaciesFromExtractedList()" style="padding: 0.65rem 1.75rem; font-weight: 600;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                        Search Nearby Pharmacies
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Multi-Medicine Pharmacy Search Results -->
+                        <div class="card" id="pharmacy-multi-search-results" style="display: none; margin-top: 1.5rem; padding: 1.5rem;">
+                            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                                <div>
+                                    <h3 style="color: var(--navy); font-size: 16px; font-weight: 700;">Nearby Pharmacy Stock Availability</h3>
+                                    <p style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;" id="pharmacy-search-summary-txt">Checking verified pharmacy inventories...</p>
+                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="window.location.href='/map.html'">View on Interactive Map</button>
+                            </div>
+
+                            <div id="pharmacy-cards-container"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- SECTION 2: MANUAL CATALOG SEARCH INTERFACE                   -->
+                <!-- ============================================================ -->
+                <div id="manual-search-section">
+                    <!-- Big Search Bar & Filter Chips -->
+                    <div class="card" style="padding: 1.5rem; margin-bottom: 2rem;">
+                        <div class="search-bar-container">
+                            <svg class="search-icon-inside" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="main-search-input" class="search-input-lg" placeholder="Search by medicine name (e.g. Amoxicillin, Paracetamol, Dolo 650)..." />
+                        </div>
+
+                        <!-- Filter Chips & Dropdowns -->
+                        <div class="flex justify-between items-center" style="margin-top: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                            <div class="filter-chips-wrapper" style="margin-top: 0;">
+                                <button class="filter-chip active" data-availability="All" onclick="setAvailabilityFilter(this, 'All')">All Status</button>
+                                <button class="filter-chip" data-availability="In Stock" onclick="setAvailabilityFilter(this, 'In Stock')">
+                                    <span class="badge-dot" style="background: var(--success);"></span> In Stock
+                                </button>
+                                <button class="filter-chip" data-availability="Out of Stock" onclick="setAvailabilityFilter(this, 'Out of Stock')">
+                                    <span class="badge-dot" style="background: var(--danger);"></span> Out of Stock
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <select id="category-filter" class="form-select" style="width: auto; padding: 0.45rem 1rem; font-size: 13px;" onchange="executeSearch()">
+                                    <option value="All">All Categories</option>
+                                    <option value="Antibiotics">Antibiotics</option>
+                                    <option value="Pain Relief">Pain Relief</option>
+                                    <option value="Diabetes">Diabetes</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="Allergy">Allergy</option>
+                                    <option value="Gastroenterology">Gastroenterology</option>
+                                    <option value="Respiratory">Respiratory</option>
+                                    <option value="Vitamins & Supplements">Vitamins & Supplements</option>
+                                </select>
+
+                                <select id="sort-filter" class="form-select" style="width: auto; padding: 0.45rem 1rem; font-size: 13px;" onchange="executeSearch()">
+                                    <option value="popular">Most Available</option>
+                                    <option value="price_asc">Price: Low to High</option>
+                                    <option value="price_desc">Price: High to Low</option>
+                                    <option value="name">Name (A-Z)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Header Count -->
+                    <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" id="search-results-count">
+                            Showing results...
+                        </div>
+                    </div>
+
+                    <!-- Medicine Cards Results Container -->
+                    <div class="card" id="medicine-results-container" style="overflow: hidden;">
+                        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                            Loading medicines...
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Extracted Medicine Modal -->
+    <div id="edit-medicine-modal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="card" style="width: 100%; max-width: 480px; padding: 2rem; margin: 1rem; background: #fff; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <h3 style="color: var(--navy); font-size: 1.15rem; font-weight: 700;" id="edit-modal-title">Edit Medicine</h3>
+                <button class="btn btn-outline btn-sm" onclick="closeEditMedicineModal()" style="border: none; font-size: 18px;">✕</button>
+            </div>
+
+            <form id="edit-medicine-form" onsubmit="saveMedicineEdit(event)">
+                <input type="hidden" id="edit-med-index" value="-1" />
+                
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 600;">Medicine Name</label>
+                    <input type="text" id="edit-med-name" class="form-input" required placeholder="e.g. Amoxicillin, Paracetamol" oninput="suggestCatalogMedicines(this.value)" />
+                    <div id="catalog-suggestions" style="display: none; margin-top: 4px; border: 1px solid var(--border-color); border-radius: 6px; max-height: 140px; overflow-y: auto; background: #fff;"></div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 600;">Dosage / Strength</label>
+                    <input type="text" id="edit-med-dosage" class="form-input" placeholder="e.g. 500 mg, 650 mg, 10 mg" />
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 600;">Matched Catalog Medicine</label>
+                    <select id="edit-med-catalog-select" class="form-select">
+                        <option value="">-- No Catalog Link (Manual Medicine) --</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="btn btn-outline" onclick="closeEditMedicineModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Medicine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let currentAvailability = 'All';
+        let currentUploadId = null;
+        let extractedMedicinesList = [];
+        let catalogMedicinesCache = [];
+        let uploadedFileRawData = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.Shell.init('search');
+
+            // Load catalog medicines for instant auto-matching / editing
+            try {
+                const catRes = await window.api.getMedicines({ limit: 100 });
+                catalogMedicinesCache = catRes.data || [];
+                populateCatalogDropdown();
+            } catch (e) {
+                console.warn('Failed to pre-cache medicines:', e);
+            }
+
+            // Read URL query params
+            const params = new URLSearchParams(window.location.search);
+            const initialQuery = params.get('q');
+            const mode = params.get('mode');
+
+            if (initialQuery) {
+                document.getElementById('main-search-input').value = initialQuery;
+            }
+
+            if (mode === 'upload') {
+                switchMode('upload');
+            } else {
+                executeSearch();
+            }
+
+            // Search input debounce
+            let debounceTimer;
+            document.getElementById('main-search-input').addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(executeSearch, 300);
+            });
+
+            // Drag & drop dropzone listeners
+            const dropZone = document.getElementById('drop-zone');
+            ['dragenter', 'dragover'].forEach(name => {
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('dragover');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(name => {
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('dragover');
+                });
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    processSelectedFile(files[0]);
+                }
+            });
+        });
+
+        function switchMode(mode) {
+            const manualSec = document.getElementById('manual-search-section');
+            const uploadSec = document.getElementById('prescription-upload-section');
+            const tabManual = document.getElementById('tab-btn-manual');
+            const tabUpload = document.getElementById('tab-btn-upload');
+
+            if (mode === 'upload') {
+                manualSec.style.display = 'none';
+                uploadSec.style.display = 'block';
+                tabManual.classList.remove('active');
+                tabUpload.classList.add('active');
+            } else {
+                manualSec.style.display = 'block';
+                uploadSec.style.display = 'none';
+                tabManual.classList.add('active');
+                tabUpload.classList.remove('active');
+            }
+        }
+
+        function setAvailabilityFilter(btn, status) {
+            currentAvailability = status;
+            document.querySelectorAll('.filter-chips-wrapper .filter-chip').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            executeSearch();
+        }
+
+        async function executeSearch() {
+            const query = document.getElementById('main-search-input').value.trim();
+            const category = document.getElementById('category-filter').value;
+            const sort = document.getElementById('sort-filter').value;
+            const container = document.getElementById('medicine-results-container');
+            const countEl = document.getElementById('search-results-count');
+
+            try {
+                const res = await window.api.getMedicines({
+                    q: query,
+                    category: category,
+                    availability: currentAvailability,
+                    sort: sort
+                });
+
+                const medicines = res.data || [];
+                countEl.innerText = `Found ${medicines.length} medicine${medicines.length === 1 ? '' : 's'}`;
+
+                if (medicines.length === 0) {
+                    container.innerHTML = `
+                        <div style="padding: 4rem 2rem; text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                            <h3 style="color: var(--navy); margin-bottom: 0.5rem;">No medicines found</h3>
+                            <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">Try searching with a different generic salt name or adjusting your filter categories.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = medicines.map(m => `
+                    <div class="medicine-card-row" onclick="window.location.href='/medicine-details.html?id=${m.id}'" style="cursor: pointer; padding: 1.25rem 1.5rem;">
+                        <div class="flex items-center" style="flex: 1.2;">
+                            <img src="${m.imageUrl}" alt="${m.name}" class="medicine-thumb" style="width: 56px; height: 56px;" onerror="this.src='https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=120'" />
+                            <div class="medicine-info-col">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="medicine-name-txt" style="font-size: 15px;">${m.name}</span>
+                                    ${m.prescriptionRequired ? '<span class="badge badge-purple" style="font-size: 10px;">Rx Required</span>' : '<span class="badge badge-gray" style="font-size: 10px;">OTC</span>'}
+                                </div>
+                                <div class="medicine-generic-txt" style="font-size: 13px;">${m.genericName} • <strong>${m.brand}</strong></div>
+                                <div style="font-size: 12px; color: var(--primary-blue); font-weight: 500; margin-top: 2px;">Category: ${m.category}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-6">
+                            <div class="flex flex-col text-right">
+                                <span class="badge ${m.overallStatus === 'In Stock' ? 'badge-success' : (m.overallStatus === 'Low Stock' ? 'badge-warning' : 'badge-danger')}" style="margin-bottom: 4px;">
+                                    <span class="badge-dot"></span>
+                                    ${m.overallStatus}
+                                </span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${m.pharmacyCount} pharmacies stocking</span>
+                            </div>
+
+                            <div class="text-right" style="min-width: 90px;">
+                                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Price</div>
+                                <div style="font-size: 1.25rem; font-weight: 700; color: var(--navy);">₹${m.basePrice.toFixed(2)}</div>
+                            </div>
+
+                            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); window.location.href='/medicine-details.html?id=${m.id}'" style="padding: 0.5rem 1rem;">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div style="padding: 2rem; color: var(--danger); text-align: center;">Error loading medicines: ${err.message}</div>`;
+            }
+        }
+
+        // ============================================================
+        // PRESCRIPTION UPLOAD & OCR EXTRACTION HANDLERS
+        // ============================================================
+
+        function handleFileSelected(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processSelectedFile(file);
+            }
+        }
+
+        function processSelectedFile(file) {
+            // Validate file size (max 10MB)
+            const MAX_BYTES = 10 * 1024 * 1024;
+            if (file.size > MAX_BYTES) {
+                window.Toast.show('File size exceeds maximum allowed limit (10MB). Please select a smaller file.', 'error');
+                return;
+            }
+
+            // Validate file type
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+            const validExts = ['.pdf', '.jpg', '.jpeg', '.png'];
+            const nameLower = file.name.toLowerCase();
+            const hasValidExt = validExts.some(ext => nameLower.endsWith(ext));
+
+            if (!validTypes.includes(file.type) && !hasValidExt) {
+                window.Toast.show('Please upload a PDF, JPG, JPEG, or PNG prescription.', 'error');
+                return;
+            }
+
+            if (file.size === 0) {
+                window.Toast.show('The selected file is empty (0 bytes).', 'error');
+                return;
+            }
+
+            // Show progress UI
+            const dropzone = document.getElementById('drop-zone');
+            const progress = document.getElementById('upload-progress-container');
+            dropzone.style.display = 'none';
+            progress.style.display = 'block';
+
+            updateProgressStep(1);
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                uploadedFileRawData = e.target.result;
+
+                setTimeout(() => updateProgressStep(2), 400);
+                setTimeout(() => updateProgressStep(3), 900);
+
+                try {
+                    const res = await window.api.uploadPrescription({
+                        fileName: file.name,
+                        fileType: file.type || (nameLower.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+                        fileData: uploadedFileRawData
+                    });
+
+                    updateProgressStep(4);
+
+                    setTimeout(() => {
+                        displayExtractionResults(res.data, file);
+                    }, 500);
+
+                } catch (err) {
+                    dropzone.style.display = 'block';
+                    progress.style.display = 'none';
+                    window.Toast.show(err.message || 'Failed to process prescription', 'error');
+                }
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function updateProgressStep(stepNum) {
+            for (let i = 1; i <= 4; i++) {
+                const el = document.getElementById(`step-${i}`);
+                if (i < stepNum) {
+                    el.className = 'progress-step done';
+                    el.innerHTML = `<span>✓</span> <span>${el.innerText.substring(3)}</span>`;
+                } else if (i === stepNum) {
+                    el.className = 'progress-step active';
+                } else {
+                    el.className = 'progress-step';
+                }
+            }
+        }
+
+        function displayExtractionResults(data, file) {
+            currentUploadId = data.id;
+            extractedMedicinesList = data.extractedMedicines || [];
+
+            document.getElementById('upload-card').style.display = 'none';
+            document.getElementById('extraction-review-container').style.display = 'block';
+
+            // Setup preview
+            const fileTypeBadge = document.getElementById('preview-file-type');
+            const previewImg = document.getElementById('preview-img');
+            const previewPdf = document.getElementById('preview-pdf-box');
+
+            fileTypeBadge.innerText = data.fileType || 'DOCUMENT';
+
+            if (data.fileType === 'PDF' || (file && file.name.endsWith('.pdf'))) {
+                previewImg.style.display = 'none';
+                previewPdf.style.display = 'block';
+                document.getElementById('preview-pdf-name').innerText = data.originalFilename || file.name;
+                document.getElementById('preview-pdf-size').innerText = `${((data.fileSize || file.size) / 1024).toFixed(1)} KB`;
+            } else {
+                previewPdf.style.display = 'none';
+                previewImg.style.display = 'block';
+                previewImg.src = uploadedFileRawData || `/api/prescriptions/uploads/${data.id}/file`;
+            }
+
+            renderExtractedMedicines();
+
+            // Render warnings if any
+            const warningsBanner = document.getElementById('extraction-warnings-banner');
+            if (data.warnings && data.warnings.length > 0) {
+                warningsBanner.style.display = 'block';
+                warningsBanner.innerHTML = `
+                    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem 1rem; font-size: 12px; color: #92400e; display: flex; align-items: center; gap: 8px;">
+                        <span>⚠</span>
+                        <span>${data.warnings.join(' ')}</span>
+                    </div>
+                `;
+            } else {
+                warningsBanner.style.display = 'none';
+            }
+
+            window.Toast.show('Prescription processed successfully!', 'success');
+        }
+
+        function renderExtractedMedicines() {
+            const container = document.getElementById('extracted-medicines-list');
+
+            if (extractedMedicinesList.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border-color);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+                        <h4 style="color: var(--navy); margin-bottom: 0.25rem;">No medicines could be confidently identified</h4>
+                        <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 1rem;">Click "+ Add Missing" to manually specify medicines from your prescription.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = extractedMedicinesList.map((item, idx) => {
+                const isMatched = item.matchedMedicineId || item.medicineId;
+                const confidencePercent = Math.round((item.confidence || 0.9) * 100);
+                const isHighConf = confidencePercent >= 75;
+
+                return `
+                    <div class="medicine-extract-card ${isMatched && isHighConf ? 'matched' : 'needs-review'}">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1;">
+                            <input type="checkbox" id="chk-med-${idx}" checked style="width: 18px; height: 18px; accent-color: var(--primary-blue); cursor: pointer;" onchange="toggleMedicineIncluded(${idx}, this.checked)" />
+                            
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-weight: 700; color: var(--navy); font-size: 14px;">${item.name || item.extractedName}</span>
+                                    ${item.dosage || item.extractedDosage ? `<span style="font-size: 12px; font-weight: 600; color: var(--primary-blue); background: rgba(37,99,235,0.08); padding: 2px 6px; border-radius: 4px;">${item.dosage || item.extractedDosage}</span>` : ''}
+                                    ${item.isUserEntered ? '<span class="badge badge-gray" style="font-size: 10px;">User Entered</span>' : ''}
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                                    ${isMatched 
+                                        ? `<span style="color: var(--success); font-weight: 600;">✓ Matched Catalog: ${item.catalogName || item.genericName || 'Verified ID #' + (item.matchedMedicineId || item.medicineId)}</span> • ${confidencePercent}% Match` 
+                                        : '<span style="color: #d97706; font-weight: 600;">⚠ Needs Review — Unmatched generic</span>'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn btn-outline btn-sm" onclick="openEditMedicineModal(${idx})" style="padding: 0.35rem 0.75rem; font-size: 12px;">
+                                Edit
+                            </button>
+                            <button class="btn btn-outline btn-sm" onclick="removeExtractedMedicine(${idx})" style="padding: 0.35rem 0.55rem; font-size: 12px; color: var(--danger); border-color: #fecaca;" title="Remove medicine">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleMedicineIncluded(idx, checked) {
+            if (extractedMedicinesList[idx]) {
+                extractedMedicinesList[idx].included = checked;
+            }
+        }
+
+        function removeExtractedMedicine(idx) {
+            extractedMedicinesList.splice(idx, 1);
+            renderExtractedMedicines();
+            window.Toast.show('Medicine removed from list', 'info');
+        }
+
+        function resetUploadFlow() {
+            document.getElementById('upload-card').style.display = 'block';
+            document.getElementById('drop-zone').style.display = 'block';
+            document.getElementById('upload-progress-container').style.display = 'none';
+            document.getElementById('extraction-review-container').style.display = 'none';
+            document.getElementById('pharmacy-multi-search-results').style.display = 'none';
+            document.getElementById('prescription-file-input').value = '';
+            uploadedFileRawData = null;
+            currentUploadId = null;
+            extractedMedicinesList = [];
+        }
+
+        function openOriginalPrescription() {
+            if (currentUploadId) {
+                window.open(`/api/prescriptions/uploads/${currentUploadId}/file`, '_blank');
+            }
+        }
+
+        function downloadOriginalPrescription() {
+            if (currentUploadId) {
+                const a = document.createElement('a');
+                a.href = `/api/prescriptions/uploads/${currentUploadId}/file`;
+                a.download = 'prescription';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+
+        // ============================================================
+        // EDIT & ADD MEDICINE MODAL
+        // ============================================================
+
+        function populateCatalogDropdown() {
+            const select = document.getElementById('edit-med-catalog-select');
+            select.innerHTML = '<option value="">-- No Catalog Link (Manual Medicine) --</option>' +
+                catalogMedicinesCache.map(m => `<option value="${m.id}">${m.name} (${m.dosage}) — ₹${m.basePrice.toFixed(2)}</option>`).join('');
+        }
+
+        function openEditMedicineModal(idx) {
+            const modal = document.getElementById('edit-medicine-modal');
+            const title = document.getElementById('edit-modal-title');
+            const indexInput = document.getElementById('edit-med-index');
+            const nameInput = document.getElementById('edit-med-name');
+            const dosageInput = document.getElementById('edit-med-dosage');
+            const select = document.getElementById('edit-med-catalog-select');
+
+            indexInput.value = idx;
+            const item = extractedMedicinesList[idx];
+
+            title.innerText = 'Edit Extracted Medicine';
+            nameInput.value = item.name || item.extractedName || '';
+            dosageInput.value = item.dosage || item.extractedDosage || '';
+            select.value = item.matchedMedicineId || item.medicineId || '';
+
+            modal.style.display = 'flex';
+        }
+
+        function openAddMedicineModal() {
+            const modal = document.getElementById('edit-medicine-modal');
+            const title = document.getElementById('edit-modal-title');
+            const indexInput = document.getElementById('edit-med-index');
+            const nameInput = document.getElementById('edit-med-name');
+            const dosageInput = document.getElementById('edit-med-dosage');
+            const select = document.getElementById('edit-med-catalog-select');
+
+            indexInput.value = -1;
+            title.innerText = 'Add Missing Medicine';
+            nameInput.value = '';
+            dosageInput.value = '';
+            select.value = '';
+
+            modal.style.display = 'flex';
+        }
+
+        function closeEditMedicineModal() {
+            document.getElementById('edit-medicine-modal').style.display = 'none';
+        }
+
+        function suggestCatalogMedicines(query) {
+            const container = document.getElementById('catalog-suggestions');
+            const select = document.getElementById('edit-med-catalog-select');
+            if (!query || query.length < 2) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const matches = catalogMedicinesCache.filter(m => 
+                m.name.toLowerCase().includes(query.toLowerCase()) || 
+                m.genericName.toLowerCase().includes(query.toLowerCase())
+            );
+
+            if (matches.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            container.innerHTML = matches.slice(0, 5).map(m => `
+                <div style="padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #f1f5f9;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'" onclick="selectCatalogMatch(${m.id}, '${m.name}', '${m.dosage}')">
+                    <strong>${m.name}</strong> • ${m.genericName} (${m.dosage})
+                </div>
+            `).join('');
+        }
+
+        function selectCatalogMatch(id, name, dosage) {
+            document.getElementById('edit-med-name').value = name;
+            document.getElementById('edit-med-dosage').value = dosage;
+            document.getElementById('edit-med-catalog-select').value = id;
+            document.getElementById('catalog-suggestions').style.display = 'none';
+        }
+
+        function saveMedicineEdit(e) {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('edit-med-index').value);
+            const name = document.getElementById('edit-med-name').value.trim();
+            const dosage = document.getElementById('edit-med-dosage').value.trim();
+            const catId = parseInt(document.getElementById('edit-med-catalog-select').value) || null;
+
+            let matchedCat = catId ? catalogMedicinesCache.find(m => m.id === catId) : null;
+
+            if (idx >= 0 && idx < extractedMedicinesList.length) {
+                // Update existing item
+                const item = extractedMedicinesList[idx];
+                item.name = name;
+                item.extractedName = name;
+                item.dosage = dosage;
+                item.extractedDosage = dosage;
+                item.matchedMedicineId = catId;
+                item.medicineId = catId;
+                item.confidence = catId ? 0.98 : 0.60;
+                item.catalogName = matchedCat ? matchedCat.name : null;
+                item.genericName = matchedCat ? matchedCat.genericName : null;
+                item.isConfirmed = true;
+            } else {
+                // Add new item
+                extractedMedicinesList.push({
+                    name: name,
+                    extractedName: name,
+                    dosage: dosage,
+                    extractedDosage: dosage,
+                    matchedMedicineId: catId,
+                    medicineId: catId,
+                    confidence: catId ? 1.0 : 0.60,
+                    catalogName: matchedCat ? matchedCat.name : null,
+                    genericName: matchedCat ? matchedCat.genericName : null,
+                    isConfirmed: true,
+                    isUserEntered: true,
+                    included: true
+                });
+            }
+
+            closeEditMedicineModal();
+            renderExtractedMedicines();
+            window.Toast.show('Medicine updated', 'success');
+        }
+
+        // ============================================================
+        // SEARCH NEARBY PHARMACIES FOR CONFIRMED MEDICINES
+        // ============================================================
+
+        async function searchPharmaciesFromExtractedList() {
+            const includedItems = extractedMedicinesList.filter(m => m.included !== false);
+
+            if (includedItems.length === 0) {
+                window.Toast.show('Please select at least one medicine to search pharmacies.', 'warning');
+                return;
+            }
+
+            // Save confirmed list on backend if uploadId exists
+            if (currentUploadId) {
+                try {
+                    await window.api.confirmPrescriptionMedicines(currentUploadId, includedItems);
+                } catch (e) {
+                    console.warn('Failed to persist confirmed medicines:', e);
+                }
+            }
+
+            // Collect valid medicine IDs for stock search
+            const medicineIds = includedItems
+                .map(m => m.matchedMedicineId || m.medicineId)
+                .filter(id => id && id > 0);
+
+            if (medicineIds.length === 0) {
+                window.Toast.show('Please link at least one medicine to the MediCareX catalog to search real inventory.', 'warning');
+                return;
+            }
+
+            const resultsCard = document.getElementById('pharmacy-multi-search-results');
+            const summaryTxt = document.getElementById('pharmacy-search-summary-txt');
+            const container = document.getElementById('pharmacy-cards-container');
+
+            resultsCard.style.display = 'block';
+            resultsCard.scrollIntoView({ behavior: 'smooth' });
+
+            container.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    <span class="spinner" style="width: 20px; height: 20px; border: 2px solid #cbd5e1; border-top-color: var(--primary-blue); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; margin-bottom: 8px;"></span>
+                    <div>Checking real-time stock across nearby pharmacies...</div>
+                </div>
+            `;
+
+            try {
+                const res = await window.api.searchPharmaciesForMedicines({
+                    medicineIds: medicineIds,
+                    latitude: 12.9716,
+                    longitude: 77.5946,
+                    radius: 25.0
+                });
+
+                const pharmacies = res.data || [];
+                summaryTxt.innerText = `Found ${pharmacies.length} nearby pharmacies matching your confirmed prescription medicines.`;
+
+                if (pharmacies.length === 0) {
+                    container.innerHTML = `
+                        <div style="padding: 3rem; text-align: center;">
+                            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏥</div>
+                            <h4 style="color: var(--navy); margin-bottom: 0.25rem;">No pharmacies currently have these medicines in stock</h4>
+                            <p style="color: var(--text-secondary); font-size: 13px;">Try expanding your search radius or consult an online pharmacist.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = pharmacies.map(p => {
+                    const allAvailable = p.allMedicinesAvailable;
+                    const stockList = p.medicineStockList || [];
+
+                    return `
+                        <div class="pharmacy-match-card">
+                            <div class="flex justify-between items-start" style="flex-wrap: wrap; gap: 1rem;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                                        <h4 style="color: var(--navy); font-size: 16px; font-weight: 700; margin: 0;">${p.pharmacyName}</h4>
+                                        <span class="badge ${allAvailable ? 'badge-success' : 'badge-warning'}" style="font-size: 11px;">
+                                            ${allAvailable ? '✓ All Medicines In Stock (' + p.availableMedicineCount + '/' + p.requestedMedicineCount + ')' : '⚠ Partial Stock (' + p.availableMedicineCount + '/' + p.requestedMedicineCount + ')'}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                                        📍 ${p.address}, ${p.city} • <strong>${p.distanceKm.toFixed(1)} km away</strong>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button class="btn btn-outline btn-sm" onclick="window.location.href='/map.html?pharmacyId=${p.id}'">
+                                        View on Map
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="window.location.href='/medicine-details.html?id=${medicineIds[0]}'">
+                                        Order from Store
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Itemized Stock Pills -->
+                            <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f1f5f9; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                ${stockList.map(s => `
+                                    <div class="stock-pill ${s.inStock ? 'in-stock' : 'out-of-stock'}">
+                                        <span>${s.inStock ? '✓' : '✗'}</span>
+                                        <span>${s.medicineName || 'Medicine #' + s.medicineId}</span>
+                                        ${s.inStock ? `<span style="font-weight: 400;">(${s.stockQuantity} in stock • ₹${s.unitPrice.toFixed(2)})</span>` : '<span style="font-weight: 400;">(Out of Stock)</span>'}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div style="padding: 2rem; color: var(--danger); text-align: center;">Failed to query pharmacy stock: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

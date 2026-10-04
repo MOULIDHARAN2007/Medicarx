@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Purchase History — MediCareX</title>
+    <meta name="description" content="View your past pharmacy medicine purchases, digital bills, line-item receipts, and batch numbers.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+    <style>
+        .bill-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .bill-card:hover {
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+            <div class="page-header flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="page-title">Medicine Purchase History</h1>
+                    <p class="text-muted">Itemized receipts, pharmacy bills, and digital tax invoices for all medicine purchases.</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/patient-medicine-supply.html" class="btn btn-secondary">
+                        <span>Check Supply Tracker</span>
+                    </a>
+                    <a href="/search.html" class="btn btn-primary">
+                        <span>Search & Buy Medicines</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Invoices Container -->
+            <div class="mt-6" id="bills-container">
+                <div class="text-center py-12 text-muted">
+                    <div class="spinner mb-2"></div>
+                    <p>Loading pharmacy purchase history...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('patient-purchase-history');
+            loadPurchaseHistory();
+        });
+
+        async function loadPurchaseHistory() {
+            const container = document.getElementById('bills-container');
+            try {
+                const res = await window.api.getPatientPurchaseHistory();
+                const list = res.data || [];
+                renderBills(list);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-danger">
+                        <p>Failed to load purchase history.</p>
+                        <button class="btn btn-sm btn-secondary mt-2" onclick="loadPurchaseHistory()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderBills(bills) {
+            const container = document.getElementById('bills-container');
+            if (bills.length === 0) {
+                container.innerHTML = `
+                    <div class="card p-12 text-center">
+                        <div class="text-4xl mb-2">🧾</div>
+                        <h4>No Medicine Purchases Recorded Yet</h4>
+                        <p class="text-xs text-muted mt-1">When you purchase medications from partner pharmacies or online, itemized tax invoices will appear here.</p>
+                        <a href="/search.html" class="btn btn-primary mt-4">Find Medicines</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = bills.map(bill => {
+                const items = bill.items || [];
+                return `
+                    <div class="bill-card">
+                        <div class="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-border">
+                            <div>
+                                <span class="text-xs font-bold text-primary tracking-wider uppercase">Invoice #${escapeHtml(bill.invoiceNumber || 'BILL-' + bill.billId)}</span>
+                                <h3 class="text-lg font-bold text-primary-dark mt-0.5">${escapeHtml(bill.pharmacyName || 'Partner Pharmacy')}</h3>
+                                <p class="text-xs text-muted">${escapeHtml(bill.pharmacyAddress || '')} ${bill.pharmacyPhone ? '• Phone: ' + escapeHtml(bill.pharmacyPhone) : ''}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-primary-dark">₹${(bill.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                                <span class="badge badge-success text-xs">Paid via ${escapeHtml(bill.paymentMethod || 'Cash')}</span>
+                                <div class="text-xs text-muted mt-1">${escapeHtml(bill.createdAt || '')}</div>
+                            </div>
+                        </div>
+
+                        <!-- Itemized Table -->
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr class="text-xs text-muted bg-surface-subtle">
+                                        <th>Medicine Item</th>
+                                        <th>Batch #</th>
+                                        <th>Dosage Form</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-right">Unit Price</th>
+                                        <th class="text-right">Total Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(it => `
+                                        <tr class="text-sm">
+                                            <td class="font-medium">${escapeHtml(it.medicineName || 'Medicine')}</td>
+                                            <td class="font-mono text-xs text-muted">${escapeHtml(it.batchNumber || 'STANDARD')}</td>
+                                            <td class="text-xs text-muted">${escapeHtml(it.dosageForm || 'Tablet/Capsule')}</td>
+                                            <td class="text-center font-bold">${it.quantity || 1}</td>
+                                            <td class="text-right text-muted">₹${(it.unitPrice || 0).toFixed(2)}</td>
+                                            <td class="text-right font-semibold">₹${(it.totalPrice || (it.quantity * it.unitPrice) || 0).toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-border flex-wrap gap-2 text-xs">
+                            <div class="text-muted">
+                                Subtotal: ₹${(bill.subtotal || bill.totalAmount).toFixed(2)} • Tax: ₹${(bill.taxAmount || 0).toFixed(2)} • Discount: ₹${(bill.discountAmount || 0).toFixed(2)}
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-secondary" onclick="printBill(${bill.billId})">
+                                    <span>🖨️ Print Receipt</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function printBill(billId) {
+            window.print();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointments Management — MediCareX Doctor</title>
+    <meta name="description" content="Manage clinical schedule, patient OPD consultations, and appointment statuses.">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Appointments & Consultation Queue</h1>
+                        <p class="page-subtitle">Schedule, track, and complete doctor-patient consultations</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="openScheduleModal()">
+                        + Schedule Appointment
+                    </button>
+                </div>
+
+                <!-- Tabs & Toolbar -->
+                <div class="card" style="padding: 1.25rem; margin-bottom: 2rem;">
+                    <div class="tabs-header" style="margin-bottom: 0;">
+                        <button class="tab-btn active" onclick="filterAppts(this, 'All')">All Consultations</button>
+                        <button class="tab-btn" onclick="filterAppts(this, 'Confirmed')">Confirmed</button>
+                        <button class="tab-btn" onclick="filterAppts(this, 'Pending')">Pending</button>
+                        <button class="tab-btn" onclick="filterAppts(this, 'Completed')">Completed</button>
+                        <button class="tab-btn" onclick="filterAppts(this, 'Cancelled')">Cancelled</button>
+                    </div>
+                </div>
+
+                <!-- Appointments Table -->
+                <div class="card">
+                    <div class="table-responsive" style="border: none;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Patient</th>
+                                    <th>Consultation Type</th>
+                                    <th>Status</th>
+                                    <th>Clinical Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="appts-tbody">
+                                <tr>
+                                    <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading appointment queue...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Schedule Appointment Modal -->
+    <div class="modal-overlay" id="schedule-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 style="color: var(--navy);">Schedule Consultation</h3>
+                <button class="btn-icon" onclick="closeScheduleModal()">✕</button>
+            </div>
+            <form id="schedule-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="sched-pat-select">Select Patient</label>
+                        <select id="sched-pat-select" class="form-select" required>
+                            <!-- Populated from API -->
+                        </select>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="form-group w-full">
+                            <label class="form-label" for="sched-date">Appointment Date</label>
+                            <input type="date" id="sched-date" class="form-input" value="2026-09-10" required />
+                        </div>
+                        <div class="form-group w-full">
+                            <label class="form-label" for="sched-time">Time Slot</label>
+                            <select id="sched-time" class="form-select">
+                                <option value="09:30 AM">09:30 AM</option>
+                                <option value="10:30 AM">10:30 AM</option>
+                                <option value="11:30 AM">11:30 AM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="03:30 PM">03:30 PM</option>
+                                <option value="04:30 PM">04:30 PM</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="sched-type">Consultation Type</label>
+                        <select id="sched-type" class="form-select">
+                            <option value="General Consultation">General Consultation</option>
+                            <option value="Follow-up Consultation">Follow-up Consultation</option>
+                            <option value="Prescription Renewal">Prescription Renewal</option>
+                            <option value="Diagnostic Review">Diagnostic Review</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="sched-notes">Clinical Notes</label>
+                        <textarea id="sched-notes" class="form-textarea" rows="2" placeholder="Symptoms, preliminary tests, or notes..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+                    <button type="submit" id="btn-submit-sched" class="btn btn-primary">Confirm Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script>
+        let appointments = [];
+        let currentTab = 'All';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.Shell.init('doctor-appointments');
+            await loadPatientOptions();
+            loadAppointments();
+        });
+
+        async function loadPatientOptions() {
+            try {
+                const res = await window.api.getDoctorPatients();
+                const select = document.getElementById('sched-pat-select');
+                if (res.data) {
+                    select.innerHTML = res.data.map(p => `<option value="${p.id}">${p.fullName} (${p.phone || p.email})</option>`).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function filterAppts(btn, tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = tab;
+            renderAppointments();
+        }
+
+        async function loadAppointments() {
+            try {
+                const res = await window.api.getDoctorAppointments();
+                appointments = res.data || [];
+                renderAppointments();
+            } catch (err) {
+                document.getElementById('appts-tbody').innerHTML = `<tr><td colspan="6" style="padding: 2rem; color: var(--danger); text-align: center;">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderAppointments() {
+            const tbody = document.getElementById('appts-tbody');
+            let list = appointments;
+
+            if (currentTab !== 'All') {
+                list = list.filter(a => a.status.toLowerCase() === currentTab.toLowerCase());
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-muted);">No appointments found in this category.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(a => `
+                <tr>
+                    <td>
+                        <strong style="color: var(--navy); font-size: 14px;">${a.appointmentDate}</strong>
+                        <div style="font-size: 12px; color: var(--primary-blue); font-weight: 600;">${a.appointmentTime}</div>
+                    </td>
+                    <td>
+                        <strong style="color: var(--navy); font-size: 14px;">${a.patientName}</strong>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID: #PAT-${a.patientId}</div>
+                    </td>
+                    <td><span class="badge badge-gray">${a.type}</span></td>
+                    <td>
+                        <span class="badge ${a.status === 'Confirmed' ? 'badge-success' : (a.status === 'Pending' ? 'badge-warning' : (a.status === 'Completed' ? 'badge-blue' : 'badge-danger'))}">
+                            <span class="badge-dot"></span>
+                            ${a.status}
+                        </span>
+                    </td>
+                    <td style="font-size: 12px; color: var(--text-secondary); max-width: 250px;">
+                        ${a.notes || 'Routine consultation'}
+                    </td>
+                    <td>
+                        <div class="flex gap-2">
+                            ${a.status !== 'Completed' && a.status !== 'Cancelled' ? `
+                                <button class="btn btn-sm btn-outline" onclick="updateStatus(${a.id}, 'Completed')">Complete</button>
+                                <button class="btn btn-sm btn-icon" onclick="cancelAppt(${a.id})" title="Cancel">✕</button>
+                            ` : '<span style="font-size: 11px; color: var(--text-muted);">Archived</span>'}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                await window.api.updateAppointmentStatus(id, status);
+                window.toast.success(`Appointment marked as ${status}`);
+                loadAppointments();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+
+        async function cancelAppt(id) {
+            if (!confirm('Are you sure you want to cancel this appointment?')) return;
+            try {
+                await window.api.cancelDoctorAppointment(id);
+                window.toast.success('Appointment cancelled');
+                loadAppointments();
+            } catch (err) {
+                window.toast.error(err.message);
+            }
+        }
+
+        function openScheduleModal() {
+            document.getElementById('schedule-modal').classList.add('open');
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('schedule-modal').classList.remove('open');
+        }
+
+        document.getElementById('schedule-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-sched');
+            btn.disabled = true;
+            btn.innerText = 'Booking...';
+
+            const payload = {
+                patientId: parseInt(document.getElementById('sched-pat-select').value),
+                appointmentDate: document.getElementById('sched-date').value,
+                appointmentTime: document.getElementById('sched-time').value,
+                type: document.getElementById('sched-type').value,
+                notes: document.getElementById('sched-notes').value.trim()
+            };
+
+            try {
+                await window.api.createDoctorAppointment(payload);
+                window.toast.success('Appointment scheduled successfully!');
+                closeScheduleModal();
+                loadAppointments();
+            } catch (err) {
+                window.toast.error(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Confirm Booking';
+            }
+        });
+    </script>
+</body>
+</html>

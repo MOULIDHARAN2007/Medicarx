@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Operations & Emergency Navigation — MediCareX</title>
+    <meta name="description" content="Paramedic and ambulance driver operational dashboard for responding to emergency dispatches, live GPS turn-by-turn navigation, and hospital transport coordination.">
+    
+    <!-- Leaflet CSS & JS for OpenStreetMap Emergency Navigation -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/pages/patient.css">
+
+    <style>
+        /* Custom Leaflet Map Markers & Navigation Telemetry */
+        .amb-marker-wrapper {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .amb-marker-icon {
+            font-size: 22px;
+            z-index: 2;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+            animation: ambBounce 2s infinite ease-in-out;
+        }
+
+        .amb-marker-pulse {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.4);
+            animation: locPulse 1.8s infinite;
+            z-index: 1;
+        }
+
+        .pat-marker-wrapper {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pat-marker-icon {
+            font-size: 24px;
+            z-index: 2;
+            filter: drop-shadow(0 2px 4px rgba(239,68,68,0.4));
+        }
+
+        .pat-marker-pulse {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.45);
+            animation: locPulse 1.6s infinite;
+            z-index: 1;
+        }
+
+        .hosp-marker-wrapper {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hosp-marker-icon {
+            font-size: 24px;
+            z-index: 2;
+            filter: drop-shadow(0 2px 4px rgba(16,185,129,0.4));
+        }
+
+        @keyframes ambBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        @keyframes locPulse {
+            0% { transform: scale(0.85); opacity: 0.9; }
+            70% { transform: scale(1.4); opacity: 0; }
+            100% { transform: scale(0.85); opacity: 0; }
+        }
+
+        .nav-telemetry-bar {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.85rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .telemetry-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .telemetry-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .telemetry-val {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .nav-map-container {
+            height: 380px;
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.05);
+            background: #e2e8f0;
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .nav-map-container {
+                height: 290px;
+            }
+            .nav-telemetry-bar {
+                padding: 0.75rem 1rem;
+                gap: 0.75rem;
+            }
+            .telemetry-item {
+                flex: 1 1 45%;
+            }
+        }
+
+        .gps-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .gps-status-dot.active {
+            background: #10B981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+        }
+
+        .gps-status-dot.warning {
+            background: #F59E0B;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+        }
+
+        .gps-status-dot.error {
+            background: #EF4444;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <div class="main-wrapper">
+            <header class="topbar" id="app-topbar"></header>
+
+            <main class="page-container">
+                <!-- Page Header -->
+                <div class="page-header flex justify-between items-center flex-wrap gap-4 mb-4">
+                    <div>
+                        <h1 class="page-title" id="ambulance-welcome-title">Ambulance Operations & Emergency Navigation</h1>
+                        <p class="page-subtitle">Real-time emergency dispatch response, live GPS turn-by-turn navigation, and hospital transport.</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button class="btn btn-primary" onclick="window.EmergencyScanner.openScanner({ role: 'AMBULANCE' })" style="font-weight: 700; display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">
+                            <span>📷 Scan Emergency QR</span>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <label for="vehicle-status-select" class="form-label" style="margin: 0; font-size: 12px; white-space: nowrap;">Vehicle Status:</label>
+                            <select id="vehicle-status-select" class="form-select" onchange="updateVehicleStatus()" style="width: auto; min-width: 140px; font-weight: 600;">
+                                <option value="AVAILABLE">🟢 Available</option>
+                                <option value="BUSY">🔴 On Mission</option>
+                                <option value="MAINTENANCE">🟡 Maintenance</option>
+                                <option value="OFFLINE">⚪ Offline</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ambulance Unit Profile Banner -->
+                <div class="card p-4 mb-4" style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: #ffffff; border: none; border-radius: 12px;">
+                    <div class="flex justify-between items-center flex-wrap gap-4">
+                        <div class="flex items-center gap-4">
+                            <div style="width: 52px; height: 52px; background: rgba(37,99,235,0.2); border: 2px solid #3b82f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                                🚑
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="badge" id="disp-vehicle-type" style="background: #2563eb; color: #ffffff; font-size: 10.5px; font-weight: 700; text-transform: uppercase;">ADVANCED LIFE SUPPORT</span>
+                                    <span class="badge" id="disp-status-badge" style="background: #10b981; color: #ffffff; font-size: 10.5px; font-weight: 700;">AVAILABLE</span>
+                                </div>
+                                <h2 class="text-xl font-bold mt-1" id="disp-vehicle-no" style="color: #ffffff; margin: 0.2rem 0;">AMB-UNIT-108</h2>
+                                <p style="font-size: 12px; color: #94a3b8; margin: 0;" id="disp-affiliation">Hospital: Central Trauma & Emergency Network</p>
+                            </div>
+                        </div>
+                        <div class="text-right" style="min-width: 140px;">
+                            <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Assigned Operator</span>
+                            <div class="font-bold text-base mt-0.5" id="disp-driver-name" style="color: #ffffff;">Paramedic Unit</div>
+                            <div style="font-size: 12px; color: #38bdf8;" id="disp-driver-phone">+91 91100 11223</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 Operational Metric Cards -->
+                <div class="stats-grid-4 mb-4">
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Current Vehicle State</div>
+                            <div class="stat-value" id="stat-vehicle-status" style="font-size: 1.15rem; color: #10b981;">AVAILABLE</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Ready for dispatch</div>
+                        </div>
+                        <div class="stat-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Active Mission</div>
+                            <div class="stat-value" id="stat-active-trip" style="font-size: 1.15rem; color: var(--navy);">None</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);" id="stat-active-trip-sub">Standby mode</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Pending Pool Requests</div>
+                            <div class="stat-value" id="stat-pending-count">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Awaiting responder</div>
+                        </div>
+                        <div class="stat-icon yellow">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div>
+                            <div class="stat-label">Completed Missions</div>
+                            <div class="stat-value" id="stat-completed-count">0</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Recorded trips</div>
+                        </div>
+                        <div class="stat-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Active Emergency Navigation & Lifecycle Panel -->
+                <div id="active-trip-section" class="mb-4">
+                    <!-- Dynamic active emergency card or standby panel -->
+                    <div id="active-trip-container">
+                        <div class="card p-5 text-center" style="background: #F8FAFC; border: 1px dashed var(--border); border-radius: 10px;">
+                            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🚑</div>
+                            <h3 style="color: var(--navy); font-size: 1.05rem; margin: 0 0 0.25rem 0;">No Active Emergency Mission</h3>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin: 0; max-width: 500px; margin-inline: auto;">
+                                You are currently on standby and ready for emergency dispatches. When an emergency is assigned or accepted, the live OpenStreetMap navigation route and patient coordinates will activate here.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Incoming Emergency Requests Pool -->
+                <div id="requests-section" class="card mb-4">
+                    <div class="card-header flex justify-between items-center flex-wrap gap-2">
+                        <div>
+                            <h3 class="card-title" style="font-size: 1.05rem; color: var(--navy);">🚨 Emergency Requests Queue</h3>
+                            <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Unassigned emergency dispatch requests awaiting responder acceptance</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline" onclick="loadDriverData(true)">
+                            <span>↻ Refresh Queue</span>
+                        </button>
+                    </div>
+
+                    <div id="pending-pool-container" class="table-responsive">
+                        <div class="text-center py-6 text-muted" style="font-size: 13px;">
+                            <div class="spinner mb-2"></div>
+                            <p style="margin: 0;">Scanning for emergency dispatch requests...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Completed Trip History -->
+                <div id="history-section" class="card">
+                    <div class="card-header flex justify-between items-center flex-wrap gap-2">
+                        <div>
+                            <h3 class="card-title" style="font-size: 1.05rem; color: var(--navy);">📜 Mission & Trip History</h3>
+                            <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0;">Log of past patient emergency dispatches and hospital transports</p>
+                        </div>
+                    </div>
+
+                    <div id="trip-history-container" class="table-responsive">
+                        <div class="text-center py-6 text-muted" style="font-size: 13px;">
+                            <p style="margin: 0;">Loading trip records...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Hospital Selector Modal -->
+    <div id="hospital-selector-modal" class="modal-overlay hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="modal-content" style="background:white;border-radius:12px;max-width:680px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div class="p-5 border-b flex justify-between items-center" style="border-color:var(--border);">
+                <div>
+                    <h3 style="font-size:1.2rem;font-weight:700;color:var(--navy);margin:0;">Select Destination Hospital</h3>
+                    <p class="text-xs text-muted mt-0.5">Suggested accredited trauma centers based on distance & receiving readiness.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-outline btn-sm font-bold text-primary-blue border-blue-300" onclick="openSuggestHospitalModal()">
+                        ✚ Add / Suggest Hospital
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="closeHospitalSelectorModal()" style="font-size:1.25rem;line-height:1;">✕</button>
+                </div>
+            </div>
+
+            <div class="p-4 border-b bg-slate-50 flex items-center gap-2" style="border-color:var(--border);">
+                <input type="text" id="modal-hospital-search" class="form-control flex-1" placeholder="Search hospitals by name, city or specialty..." oninput="filterModalHospitals()">
+                <button class="btn btn-secondary btn-sm shrink-0" onclick="openHospitalSelectorModal(selectorTripId)">
+                    ↻ Refresh
+                </button>
+            </div>
+
+            <div id="modal-hospitals-list" class="p-4 space-y-3" style="overflow-y:auto;flex:1;">
+                <div class="text-center py-8 text-muted">
+                    <div class="spinner mb-2"></div>
+                    <p>Loading nearby emergency hospitals...</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-slate-50 flex justify-between items-center text-xs text-muted" style="border-color:var(--border);">
+                <span>ℹ️ Final destination choice is made by authorized paramedic</span>
+                <button class="btn btn-secondary btn-sm" onclick="closeHospitalSelectorModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Suggest Hospital Modal for Ambulance -->
+    <div id="suggest-hospital-modal" class="modal-overlay hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;">
+        <div class="modal-content" style="background:white;border-radius:12px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+            <div class="p-5 border-b flex justify-between items-center" style="border-color:var(--border);">
+                <div>
+                    <h3 style="font-size:1.2rem;font-weight:700;color:var(--navy);margin:0;">Add / Suggest Hospital</h3>
+                    <p class="text-xs text-muted mt-0.5">Submit a medical center for administrative review and emergency dispatch inclusion.</p>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="closeSuggestHospitalModal()" style="font-size:1.25rem;line-height:1;">✕</button>
+            </div>
+
+            <form id="suggest-hospital-form" onsubmit="handleSuggestHospitalSubmit(event)" class="p-5 space-y-4">
+                <!-- Name -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Hospital Name *</label>
+                    <input type="text" id="sugg-hosp-name" class="form-control" placeholder="e.g., City Emergency Care Center" required>
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Address *</label>
+                    <input type="text" id="sugg-hosp-address" class="form-control" placeholder="e.g., 45 Healthcare Blvd, Outer Ring Road" required>
+                </div>
+
+                <!-- City, State, Pincode -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City *</label>
+                        <input type="text" id="sugg-hosp-city" class="form-control" placeholder="Bengaluru" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State *</label>
+                        <input type="text" id="sugg-hosp-state" class="form-control" placeholder="Karnataka" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pincode</label>
+                        <input type="text" id="sugg-hosp-pincode" class="form-control" placeholder="560001">
+                    </div>
+                </div>
+
+                <!-- Latitude, Longitude & Location Helper -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Geographic Coordinates *</label>
+                        <button type="button" class="btn btn-outline btn-xs text-blue-600" onclick="useAmbulanceLocationForHospital()" style="font-size: 11px; padding: 2px 8px;">
+                            📍 Use Current Location
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <input type="number" step="any" id="sugg-hosp-lat" class="form-control text-xs" placeholder="Latitude (-90 to 90)" required>
+                        </div>
+                        <div>
+                            <input type="number" step="any" id="sugg-hosp-lng" class="form-control text-xs" placeholder="Longitude (-180 to 180)" required>
+                        </div>
+                    </div>
+                    <span class="text-[11px] text-muted block mt-1">Please verify the hospital coordinates before submission.</span>
+                </div>
+
+                <!-- Phone & Emergency Hotline -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">General Phone</label>
+                        <input type="tel" id="sugg-hosp-phone" class="form-control" placeholder="e.g., 080-22223333">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Emergency ER Hotline</label>
+                        <input type="tel" id="sugg-hosp-er-contact" class="form-control" placeholder="e.g., 080-22229999">
+                    </div>
+                </div>
+
+                <!-- Bed Capacity -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Reported Available Beds</label>
+                        <input type="number" min="0" id="sugg-hosp-avail-beds" class="form-control" value="10">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total Beds</label>
+                        <input type="number" min="0" id="sugg-hosp-total-beds" class="form-control" value="50">
+                    </div>
+                </div>
+
+                <!-- Capabilities & Toggles -->
+                <div class="p-3 bg-slate-50 border rounded-lg space-y-2 text-xs" style="border-color:var(--border);">
+                    <div class="font-bold text-slate-800 uppercase tracking-wider mb-1">Services & Readiness</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="checkbox" id="sugg-hosp-er" checked> 24/7 Emergency Available
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="checkbox" id="sugg-hosp-icu" checked> ICU Services Available
+                        </label>
+                    </div>
+                    <div class="pt-1.5 border-t" style="border-color:var(--border);">
+                        <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                            <input type="checkbox" id="sugg-hosp-accepting" checked> Accepting Ambulances
+                        </label>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                    ℹ️ <strong>Pending Review Notice:</strong> New hospital suggestions are submitted with status <code>PENDING_REVIEW</code> and will become active for emergency dispatch after administrator approval.
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-3 border-t flex justify-end gap-3" style="border-color:var(--border);">
+                    <button type="button" class="btn btn-secondary" onclick="closeSuggestHospitalModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-suggest-hospital">Submit for Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/libs/html5-qrcode.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/components/shell.js"></script>
+    <script src="/js/components/toast.js"></script>
+    <script src="/js/components/emergency-scanner.js"></script>
+    <script>
+        let pollTimer = null;
+        let activeTrip = null;
+        let mapInstance = null;
+        let polylineLayer = null;
+        let markers = {};
+        
+        // Ambulance Driver Coordinates
+        let driverCoords = {
+            latitude: 12.9784,
+            longitude: 77.6408,
+            isLive: false,
+            statusText: 'Locating...'
+        };
+
+        let lastActiveTripId = null;
+        let lastTripStatus = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Shell.init('ambulance-dashboard');
+            
+            const user = window.api.getCurrentUser();
+            if (user?.fullName) {
+                document.getElementById('ambulance-welcome-title').innerText = `Welcome back, ${user.fullName}! 👋`;
+            }
+
+            // Start GPS watching
+            initAmbulanceGeolocation();
+
+            // Load driver operational data
+            loadDriverData();
+            startPolling();
+        });
+
+        // ----------------------------------------------------
+        // Geolocation Service
+        // ----------------------------------------------------
+        function initAmbulanceGeolocation() {
+            if (!navigator.geolocation) {
+                driverCoords.isLive = false;
+                driverCoords.statusText = 'Ambulance location unavailable (Geolocation unsupported)';
+                updateTelemetryBarUI();
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    handlePositionSuccess(pos);
+                },
+                (err) => {
+                    handlePositionError(err);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+            );
+
+            // Continuous background watcher
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    handlePositionSuccess(pos);
+                },
+                (err) => {
+                    handlePositionError(err);
+                },
+                { enableHighAccuracy: true, maximumAge: 15000 }
+            );
+        }
+
+        function handlePositionSuccess(pos) {
+            driverCoords.latitude = pos.coords.latitude;
+            driverCoords.longitude = pos.coords.longitude;
+            driverCoords.isLive = true;
+            driverCoords.statusText = `Live GPS (${driverCoords.latitude.toFixed(4)}, ${driverCoords.longitude.toFixed(4)})`;
+            
+            // Broadcast driver coordinates to backend
+            window.api.updateAmbulanceLocation(driverCoords.latitude, driverCoords.longitude).catch(() => {});
+
+            // Update map if active
+            updateMapDisplay();
+            updateTelemetryBarUI();
+        }
+
+        function handlePositionError(err) {
+            driverCoords.isLive = false;
+            if (err.code === err.PERMISSION_DENIED) {
+                driverCoords.statusText = 'Ambulance location unavailable (Permission Denied)';
+            } else if (err.code === err.TIMEOUT) {
+                driverCoords.statusText = 'Ambulance location unavailable (GPS Timeout)';
+            } else {
+                driverCoords.statusText = 'Ambulance location unavailable';
+            }
+            updateTelemetryBarUI();
+        }
+
+        // ----------------------------------------------------
+        // Driver Operational Data Loader
+        // ----------------------------------------------------
+        async function loadDriverData(isManual = false) {
+            try {
+                // 1. Fetch driver ambulance profile
+                const ambRes = await window.api.getDriverAmbulanceProfile();
+                const amb = ambRes.data;
+                if (amb) {
+                    renderVehicleInfo(amb);
+                    // Use vehicle's stored DB coords if browser live GPS is not yet acquired
+                    if (!driverCoords.isLive && amb.currentLatitude && amb.currentLongitude) {
+                        driverCoords.latitude = amb.currentLatitude;
+                        driverCoords.longitude = amb.currentLongitude;
+                    }
+                }
+
+                // 2. Fetch driver requests
+                const reqRes = await window.api.getDriverEmergencyRequests();
+                const data = reqRes.data || {};
+                
+                const myRequests = data.myRequests || [];
+                const pendingPool = data.pendingPool || [];
+
+                // Identify active mission
+                activeTrip = myRequests.find(r => !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(r.status));
+                const completedTrips = myRequests.filter(r => r.status === 'COMPLETED');
+
+                // Update operational stats
+                document.getElementById('stat-pending-count').innerText = pendingPool.length;
+                document.getElementById('stat-completed-count').innerText = completedTrips.length;
+
+                if (activeTrip) {
+                    document.getElementById('stat-active-trip').innerText = activeTrip.status.replace(/_/g, ' ');
+                    document.getElementById('stat-active-trip').style.color = '#EF4444';
+                    document.getElementById('stat-active-trip-sub').innerText = `ID #${activeTrip.id} · ${activeTrip.emergencyType || 'Emergency'}`;
+                    
+                    renderActiveTrip(activeTrip);
+                } else {
+                    document.getElementById('stat-active-trip').innerText = 'None';
+                    document.getElementById('stat-active-trip').style.color = 'var(--navy)';
+                    document.getElementById('stat-active-trip-sub').innerText = 'Standby mode';
+                    
+                    if (mapInstance) {
+                        mapInstance.remove();
+                        mapInstance = null;
+                        markers = {};
+                        polylineLayer = null;
+                    }
+                    renderStandbyPanel();
+                }
+
+                renderPendingPool(pendingPool);
+                renderTripHistory(completedTrips);
+
+                if (isManual) window.toast.success('Queue refreshed successfully');
+            } catch (err) {
+                console.error('Error loading ambulance driver operational data:', err);
+                if (isManual) window.toast.error('Failed to refresh data: ' + err.message);
+            }
+        }
+
+        function renderVehicleInfo(amb) {
+            const vNo = amb.vehicleNumber || 'AMB-UNIT-108';
+            const vType = (amb.vehicleType || 'ADVANCED_LIFE_SUPPORT').replace(/_/g, ' ');
+            const status = (amb.status || 'AVAILABLE').toUpperCase();
+            
+            document.getElementById('disp-vehicle-no').textContent = vNo;
+            document.getElementById('disp-vehicle-type').textContent = vType;
+            document.getElementById('disp-affiliation').textContent = 'Hospital: ' + (amb.hospitalAffiliation || 'Central Trauma & Emergency Network');
+            document.getElementById('disp-driver-name').textContent = amb.driverName || 'Paramedic Unit';
+            document.getElementById('disp-driver-phone').textContent = amb.driverPhone || '+91 91100 11223';
+            
+            const sel = document.getElementById('vehicle-status-select');
+            if (sel) sel.value = status;
+
+            const statBadge = document.getElementById('disp-status-badge');
+            const statText = document.getElementById('stat-vehicle-status');
+            if (statBadge) {
+                statBadge.textContent = status;
+                statBadge.style.background = status === 'AVAILABLE' ? '#10B981' : (status === 'BUSY' ? '#EF4444' : '#F59E0B');
+            }
+            if (statText) {
+                statText.textContent = status;
+                statText.style.color = status === 'AVAILABLE' ? '#10B981' : (status === 'BUSY' ? '#EF4444' : '#F59E0B');
+            }
+        }
+
+        function renderStandbyPanel() {
+            document.getElementById('active-trip-container').innerHTML = `
+                <div class="card p-5 text-center" style="background: #F8FAFC; border: 1px dashed var(--border); border-radius: 10px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🚑</div>
+                    <h3 style="color: var(--navy); font-size: 1.05rem; margin: 0 0 0.25rem 0;">No Active Emergency Mission</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin: 0; max-width: 500px; margin-inline: auto;">
+                        You are currently on standby and ready for emergency dispatches. When an emergency is assigned or accepted, the live OpenStreetMap navigation route and patient coordinates will activate here.
+                    </p>
+                </div>
+            `;
+            lastActiveTripId = null;
+            lastTripStatus = null;
+        }
+
+        function renderActiveTrip(trip) {
+            const container = document.getElementById('active-trip-container');
+            const s = (trip.status || '').toUpperCase();
+            const tripChanged = (lastActiveTripId !== trip.id || lastTripStatus !== s);
+
+            if (tripChanged || !document.getElementById('ambulance-nav-map')) {
+                lastActiveTripId = trip.id;
+                lastTripStatus = s;
+
+                // Build HTML structure
+                const hasPatientCoords = (trip.pickupLatitude && trip.pickupLongitude && trip.pickupLatitude !== 0);
+                const hasHospitalCoords = (trip.hospitalLatitude && trip.hospitalLongitude && trip.hospitalLatitude !== 0);
+
+                container.innerHTML = `
+                    <div class="card border-2 shadow-sm" style="border-color: #2563eb; border-radius: 10px; overflow: hidden;">
+                        <!-- Header Banner -->
+                        <div class="card-header flex justify-between items-center flex-wrap gap-2" style="background: #EFF6FF; border-bottom: 1px solid #BFDBFE;">
+                            <div class="flex items-center gap-2">
+                                <span class="badge badge-primary" style="font-weight: 700; font-size: 11px;">● ACTIVE EMERGENCY DISPATCH</span>
+                                <span style="font-size: 12px; color: #1E40AF; font-weight: 600;">Mission #${trip.id} · Requested: ${escapeHtml(trip.requestedAt || 'Just now')}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="badge badge-danger uppercase" style="font-weight: 700;">${escapeHtml(trip.severity || 'CRITICAL')}</span>
+                                <span class="badge badge-blue uppercase" style="font-weight: 700;" id="trip-status-pill">${escapeHtml(s).replace(/_/g, ' ')}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4">
+                            <!-- Emergency Navigation Live Telemetry Bar -->
+                            <div class="nav-telemetry-bar" id="telemetry-bar">
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Navigation Target</span>
+                                    <div class="telemetry-val" id="telemetry-target">
+                                        ${getTargetDescriptionHtml(trip)}
+                                    </div>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Route Distance</span>
+                                    <div class="telemetry-val" id="telemetry-distance">Calculating...</div>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Estimated ETA</span>
+                                    <div class="telemetry-val" id="telemetry-eta" style="color: var(--primary-blue);">Calculating...</div>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Ambulance GPS</span>
+                                    <div class="telemetry-val" id="telemetry-gps" style="font-size: 12px;">
+                                        <span class="gps-status-dot ${driverCoords.isLive ? 'active' : 'warning'}"></span>
+                                        <span id="telemetry-gps-text">${driverCoords.statusText}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Leaflet OpenStreetMap Container -->
+                            <div class="nav-map-container" id="ambulance-nav-map"></div>
+
+                            <!-- Emergency Context & Action Control Grid -->
+                            <div class="grid grid-3 gap-4 mt-4">
+                                <!-- Col 1: Patient Details -->
+                                <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                    <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Patient & Emergency</span>
+                                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--navy); margin: 0.25rem 0 0.1rem 0;">${escapeHtml(trip.patientName || 'Emergency Patient')}</h3>
+                                    <div style="font-size: 12.5px; color: var(--text-secondary); font-weight: 600;">📞 ${escapeHtml(trip.contactPhone || 'N/A')}</div>
+                                    
+                                    <div class="mt-2 p-2" style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px; font-size: 12px; color: #991B1B;">
+                                        <strong>Category:</strong> ${escapeHtml(trip.emergencyType || 'General')}<br>
+                                        <strong>Patient Notes:</strong> ${escapeHtml(trip.patientNotes || 'Immediate response required')}
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-primary w-full mt-2 justify-center" onclick="window.EmergencyScanner.openScanner({ role: 'AMBULANCE' })" style="font-size: 11.5px; font-weight: 700; padding: 6px 10px;">
+                                        <span>📷 Scan Patient Emergency QR</span>
+                                    </button>
+                                </div>
+
+                                <!-- Col 2: Locations & Destination -->
+                                <div class="p-3" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                    <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Locations & Transport</span>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--navy); margin-top: 0.25rem;">
+                                        📍 <strong>Pickup:</strong> ${escapeHtml(trip.pickupAddress || (hasPatientCoords ? `${trip.pickupLatitude.toFixed(4)}, ${trip.pickupLongitude.toFixed(4)}` : 'Patient location unavailable'))}
+                                    </div>
+                                    ${trip.landmark ? `<div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 0.15rem;">Landmark: ${escapeHtml(trip.landmark)}</div>` : ''}
+                                    
+                                    <div class="mt-2 pt-2" style="border-top: 1px solid var(--border); font-size: 12.5px;">
+                                        🏥 <strong>Destination ER:</strong> 
+                                        <span style="font-weight: 700; color: var(--navy);" id="active-dest-hospital-name">
+                                            ${escapeHtml(trip.destinationHospitalName || trip.hospitalAffiliation || 'Not Selected Yet')}
+                                        </span>
+                                        ${trip.destinationHospitalAddress ? `<div style="font-size: 11px; color: var(--text-secondary);">${escapeHtml(trip.destinationHospitalAddress)}</div>` : ''}
+                                        ${(['PATIENT_PICKED_UP', 'TRANSPORTING'].includes(s)) ? `
+                                            <button class="btn btn-outline btn-xs mt-1.5 w-full justify-center" onclick="openHospitalSelectorModal(${trip.id})">
+                                                🏥 ${trip.destinationHospitalId ? 'Change Destination Hospital' : 'Select Destination Hospital'}
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+
+                                <!-- Col 3: Stage Progression & Navigation Controls -->
+                                <div class="p-3 flex flex-col justify-center gap-2" style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px;">
+                                    <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); text-align: center; letter-spacing: 0.5px;">Navigation & Mission Stage</span>
+                                    
+                                    <!-- External Navigation & Recalculate Buttons -->
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-primary btn-sm flex-1 justify-center font-bold" onclick="openExternalNavigation()" id="btn-external-nav">
+                                            🗺️ Navigate in Maps
+                                        </button>
+                                        <button class="btn btn-outline btn-sm justify-center" onclick="recalculateNavigationRoute()" title="Recalculate route with latest GPS">
+                                            🔄
+                                        </button>
+                                    </div>
+
+                                    <!-- Lifecycle Stage Progression Button -->
+                                    <div id="trip-actions-container" class="mt-1">
+                                        ${getStageButtonsHtml(trip)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Destination Hospital Selection Card when Patient Picked Up -->
+                            ${renderDestinationHospitalSection(trip)}
+                        </div>
+                    </div>
+                `;
+
+                // Initialize or refresh map
+                setTimeout(() => {
+                    initOrUpdateMap(trip);
+                    if (document.getElementById('nearby-hospitals-quick-list')) {
+                        loadNearbyHospitalsForQuickList(trip);
+                    }
+                }, 50);
+            } else {
+                // Update live stage action buttons if unchanged
+                const actContainer = document.getElementById('trip-actions-container');
+                if (actContainer) actContainer.innerHTML = getStageButtonsHtml(trip);
+                
+                const pill = document.getElementById('trip-status-pill');
+                if (pill) pill.innerText = s.replace(/_/g, ' ');
+
+                const targetEl = document.getElementById('telemetry-target');
+                if (targetEl) targetEl.innerHTML = getTargetDescriptionHtml(trip);
+
+                const hospSec = document.getElementById('destination-hospital-section');
+                if (hospSec) {
+                    hospSec.outerHTML = renderDestinationHospitalSection(trip);
+                    if (document.getElementById('nearby-hospitals-quick-list')) {
+                        loadNearbyHospitalsForQuickList(trip);
+                    }
+                }
+
+                updateMapDisplay();
+            }
+        }
+
+        function renderDestinationHospitalSection(trip) {
+            const s = (trip?.status || '').toUpperCase();
+            if (!['PATIENT_PICKED_UP', 'TRANSPORTING', 'ARRIVED_AT_HOSPITAL'].includes(s)) {
+                return '<div id="destination-hospital-section"></div>';
+            }
+
+            const hasHospital = !!(trip.destinationHospitalId || trip.destinationHospitalName);
+
+            if (hasHospital && s !== 'PATIENT_PICKED_UP') {
+                return `
+                    <div id="destination-hospital-section" class="mt-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg flex justify-between items-center flex-wrap gap-3">
+                        <div class="flex items-center gap-3">
+                            <div style="font-size: 24px;">🏥</div>
+                            <div>
+                                <span class="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider block">Confirmed Destination Hospital</span>
+                                <h4 class="font-bold text-navy text-sm m-0">${escapeHtml(trip.destinationHospitalName || trip.hospitalAffiliation)}</h4>
+                                <div class="text-xs text-slate-600">${escapeHtml(trip.destinationHospitalAddress || '')} ${trip.destinationHospitalPhone ? `• 📞 ${escapeHtml(trip.destinationHospitalPhone)}` : ''}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-outline btn-sm bg-white" onclick="openHospitalSelectorModal(${trip.id})">
+                                🔄 Change Hospital
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div id="destination-hospital-section" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex justify-between items-center flex-wrap gap-2 mb-3">
+                        <div>
+                            <span class="text-[11px] font-bold text-blue-900 uppercase tracking-wider block">🏥 SELECT DESTINATION HOSPITAL</span>
+                            <p class="text-xs text-blue-700 m-0">Nearby accredited hospitals suggested based on distance & receiving readiness. Paramedic/driver makes final confirmation.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-outline btn-sm bg-white font-bold text-primary-blue border-blue-300" onclick="openSuggestHospitalModal()">
+                                ✚ Suggest Hospital
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openHospitalSelectorModal(${trip.id})">
+                                🔍 Browse All Hospitals
+                            </button>
+                        </div>
+                    </div>
+                    <div id="nearby-hospitals-quick-list" class="grid grid-cols-2 gap-3">
+                        <div class="text-center py-4 text-xs text-muted col-span-2">
+                            <div class="spinner mb-1"></div>
+                            Loading nearby hospital trauma centers...
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getTargetDescriptionHtml(trip) {
+            const s = (trip?.status || '').toUpperCase();
+            if (['PATIENT_PICKED_UP', 'TRANSPORTING', 'ARRIVED_AT_HOSPITAL'].includes(s)) {
+                return `🏥 ${escapeHtml(trip.destinationHospitalName || 'Hospital Trauma ER')}`;
+            }
+            return `📍 Patient Pickup`;
+        }
+
+        function getStageButtonsHtml(trip) {
+            const s = (trip.status || '').toUpperCase();
+
+            if (s === 'REQUESTED' || s === 'ASSIGNED') {
+                return `
+                    <button class="btn btn-primary w-full justify-center" onclick="updateTripStatus(${trip.id}, 'ACCEPTED')">
+                        ✓ Accept Dispatch
+                    </button>
+                `;
+            } else if (s === 'ACCEPTED') {
+                return `
+                    <button class="btn btn-primary w-full justify-center" onclick="updateTripStatus(${trip.id}, 'EN_ROUTE')">
+                        🚑 En Route to Patient
+                    </button>
+                `;
+            } else if (s === 'EN_ROUTE') {
+                return `
+                    <button class="btn btn-success w-full justify-center" onclick="updateTripStatus(${trip.id}, 'ARRIVED')">
+                        📍 Arrived at Scene
+                    </button>
+                `;
+            } else if (s === 'ARRIVED') {
+                return `
+                    <div class="mb-1 text-center font-bold" style="font-size: 11.5px; color: #10B981;">✓ You have arrived at patient location</div>
+                    <button class="btn btn-primary w-full justify-center" onclick="updateTripStatus(${trip.id}, 'PATIENT_PICKED_UP')">
+                        🩺 Patient Onboard (Load)
+                    </button>
+                `;
+            } else if (s === 'PATIENT_PICKED_UP') {
+                const hasDest = !!(trip.destinationHospitalId || trip.destinationHospitalName);
+                return `
+                    <div class="mb-1 text-center font-bold" style="font-size: 11px; color: #2563EB;">🩺 Patient Onboard — Select Destination Hospital</div>
+                    <button class="btn btn-primary w-full justify-center font-bold" onclick="${hasDest ? `updateTripStatus(${trip.id}, 'TRANSPORTING')` : `openHospitalSelectorModal(${trip.id})`}">
+                        ${hasDest ? '🏥 Start Transport to Hospital' : '🏥 Select Destination Hospital'}
+                    </button>
+                `;
+            } else if (s === 'TRANSPORTING') {
+                return `
+                    <button class="btn btn-success w-full justify-center" onclick="updateTripStatus(${trip.id}, 'ARRIVED_AT_HOSPITAL')">
+                        🏥 Arrived at Hospital ER
+                    </button>
+                `;
+            } else if (s === 'ARRIVED_AT_HOSPITAL') {
+                return `
+                    <div class="mb-1 text-center font-bold" style="font-size: 11.5px; color: #10B981;">✓ Arrived at Emergency Trauma Center</div>
+                    <button class="btn btn-success w-full justify-center font-bold" onclick="updateTripStatus(${trip.id}, 'COMPLETED')">
+                        ✓ Complete Mission (Handover)
+                    </button>
+                `;
+            }
+            return `<span class="badge badge-gray text-center">${escapeHtml(s)}</span>`;
+        }
+
+        // ----------------------------------------------------
+        // Leaflet OpenStreetMap Navigation System
+        // ----------------------------------------------------
+        function initOrUpdateMap(trip) {
+            const mapContainer = document.getElementById('ambulance-nav-map');
+            if (!mapContainer) return;
+
+            if (mapInstance) {
+                mapInstance.remove();
+                mapInstance = null;
+                markers = {};
+                polylineLayer = null;
+            }
+
+            const initialLat = driverCoords.latitude || 12.9784;
+            const initialLng = driverCoords.longitude || 77.6408;
+
+            mapInstance = L.map('ambulance-nav-map', {
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView([initialLat, initialLng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(mapInstance);
+
+            updateMapDisplay();
+        }
+
+        async function updateMapDisplay() {
+            if (!mapInstance || !activeTrip) return;
+
+            const s = (activeTrip.status || '').toUpperCase();
+            const isTransporting = ['PATIENT_PICKED_UP', 'TRANSPORTING', 'ARRIVED_AT_HOSPITAL'].includes(s);
+
+            const hasPatientCoords = (activeTrip.pickupLatitude && activeTrip.pickupLongitude && activeTrip.pickupLatitude !== 0);
+            const hasHospitalCoords = (activeTrip.hospitalLatitude && activeTrip.hospitalLongitude && activeTrip.hospitalLatitude !== 0);
+
+            // Determine Target destination coordinates
+            let targetCoords = null;
+            let targetType = 'patient';
+
+            if (isTransporting && hasHospitalCoords) {
+                targetCoords = { lat: activeTrip.hospitalLatitude, lng: activeTrip.hospitalLongitude };
+                targetType = 'hospital';
+            } else if (hasPatientCoords) {
+                targetCoords = { lat: activeTrip.pickupLatitude, lng: activeTrip.pickupLongitude };
+                targetType = 'patient';
+            }
+
+            const boundsPoints = [];
+
+            // 1. Ambulance Marker
+            if (driverCoords.latitude && driverCoords.longitude) {
+                boundsPoints.push([driverCoords.latitude, driverCoords.longitude]);
+                const ambIcon = L.divIcon({
+                    className: 'amb-marker-wrapper',
+                    html: `<div class="amb-marker-pulse"></div><span class="amb-marker-icon">🚑</span>`,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19]
+                });
+
+                if (markers.ambulance) {
+                    markers.ambulance.setLatLng([driverCoords.latitude, driverCoords.longitude]);
+                } else {
+                    markers.ambulance = L.marker([driverCoords.latitude, driverCoords.longitude], { icon: ambIcon }).addTo(mapInstance);
+                }
+
+                markers.ambulance.bindPopup(`
+                    <div style="font-family: var(--font-family); text-align: center; padding: 4px;">
+                        <strong style="color: #2563eb; font-size: 13px;">🚑 Ambulance Unit</strong><br>
+                        <span style="font-size: 11px; color: #64748b;">${driverCoords.isLive ? 'Live Device GPS' : 'Assigned Base Location'}</span><br>
+                        <span style="font-size: 11px; font-weight: 600;">${driverCoords.latitude.toFixed(4)}, ${driverCoords.longitude.toFixed(4)}</span>
+                    </div>
+                `);
+            }
+
+            // 2. Patient Marker
+            if (hasPatientCoords) {
+                boundsPoints.push([activeTrip.pickupLatitude, activeTrip.pickupLongitude]);
+                const patIcon = L.divIcon({
+                    className: 'pat-marker-wrapper',
+                    html: `<div class="pat-marker-pulse"></div><span class="pat-marker-icon">📍</span>`,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 34]
+                });
+
+                if (markers.patient) {
+                    markers.patient.setLatLng([activeTrip.pickupLatitude, activeTrip.pickupLongitude]);
+                } else {
+                    markers.patient = L.marker([activeTrip.pickupLatitude, activeTrip.pickupLongitude], { icon: patIcon }).addTo(mapInstance);
+                }
+
+                markers.patient.bindPopup(`
+                    <div style="font-family: var(--font-family); min-width: 180px; padding: 4px;">
+                        <strong style="color: #dc2626; font-size: 13px;">📍 Patient Pickup Location</strong><br>
+                        <span style="font-size: 12px; font-weight: 600; color: #0f172a;">${escapeHtml(activeTrip.patientName || 'Emergency Patient')}</span><br>
+                        <span style="font-size: 11px; color: #475569;">${escapeHtml(activeTrip.pickupAddress || 'GPS Location')}</span><br>
+                        <span style="font-size: 11px; color: #dc2626; font-weight: 600;">Type: ${escapeHtml(activeTrip.emergencyType || 'General')}</span>
+                    </div>
+                `);
+            }
+
+            // 3. Hospital Marker
+            if (hasHospitalCoords) {
+                boundsPoints.push([activeTrip.hospitalLatitude, activeTrip.hospitalLongitude]);
+                const hospIcon = L.divIcon({
+                    className: 'hosp-marker-wrapper',
+                    html: `<span class="hosp-marker-icon">🏥</span>`,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19]
+                });
+
+                if (markers.hospital) {
+                    markers.hospital.setLatLng([activeTrip.hospitalLatitude, activeTrip.hospitalLongitude]);
+                } else {
+                    markers.hospital = L.marker([activeTrip.hospitalLatitude, activeTrip.hospitalLongitude], { icon: hospIcon }).addTo(mapInstance);
+                }
+
+                markers.hospital.bindPopup(`
+                    <div style="font-family: var(--font-family); min-width: 180px; padding: 4px;">
+                        <strong style="color: #059669; font-size: 13px;">🏥 Emergency Trauma Center</strong><br>
+                        <span style="font-size: 12px; font-weight: 600; color: #0f172a;">${escapeHtml(activeTrip.hospitalAffiliation || 'Central Trauma Network')}</span>
+                    </div>
+                `);
+            }
+
+            // Fit Map View
+            if (boundsPoints.length > 1) {
+                mapInstance.fitBounds(boundsPoints, { padding: [40, 40], maxZoom: 15 });
+            } else if (boundsPoints.length === 1) {
+                mapInstance.setView(boundsPoints[0], 14);
+            }
+
+            // 4. Calculate and Draw Route
+            if (targetCoords && driverCoords.latitude && driverCoords.longitude) {
+                calculateAndRenderRoute(
+                    driverCoords.latitude, driverCoords.longitude,
+                    targetCoords.lat, targetCoords.lng,
+                    targetType
+                );
+            } else {
+                updateTelemetryBarValues('Location unavailable', 'ETA unavailable');
+            }
+        }
+
+        async function calculateAndRenderRoute(startLat, startLng, destLat, destLng, targetType) {
+            // Remove previous polyline
+            if (polylineLayer) {
+                mapInstance.removeLayer(polylineLayer);
+                polylineLayer = null;
+            }
+
+            if (!startLat || !startLng || !destLat || !destLng) {
+                updateTelemetryBarValues('Coordinates unavailable', 'Route unavailable');
+                return;
+            }
+
+            // If GPS is still acquiring and not live, display acquiring status
+            if (!driverCoords.isLive) {
+                updateTelemetryBarValues('Acquiring GPS...', 'Acquiring GPS...');
+            }
+
+            let routeDrawn = false;
+
+            // Try OpenStreetMap OSRM Public Driving Routing Service with real coordinates
+            try {
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+                const res = await fetch(osrmUrl, { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+
+                if (data?.routes?.[0]?.geometry?.coordinates && data.routes[0].distance != null) {
+                    const geoJsonCoords = data.routes[0].geometry.coordinates.map(pt => [pt[1], pt[0]]);
+                    
+                    const routeColor = targetType === 'hospital' ? '#059669' : '#2563eb';
+                    polylineLayer = L.polyline(geoJsonCoords, {
+                        color: routeColor,
+                        weight: 5,
+                        opacity: 0.85,
+                        lineJoin: 'round'
+                    }).addTo(mapInstance);
+
+                    const distanceKm = (data.routes[0].distance / 1000).toFixed(1);
+                    const durationMins = Math.max(1, Math.round(data.routes[0].duration / 60));
+
+                    updateTelemetryBarValues(`${distanceKm} km`, `${durationMins} mins (OSRM Route)`);
+                    routeDrawn = true;
+                }
+            } catch (err) {
+                console.warn('OSRM routing request failed:', err);
+            }
+
+            // If routing service fails or is offline: do not invent fake distances
+            if (!routeDrawn) {
+                updateTelemetryBarValues('Route unavailable', 'Route unavailable');
+            }
+        }
+
+        function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function updateTelemetryBarValues(distText, etaText) {
+            const distEl = document.getElementById('telemetry-distance');
+            const etaEl = document.getElementById('telemetry-eta');
+            if (distEl) distEl.innerText = distText;
+            if (etaEl) etaEl.innerText = etaText;
+        }
+
+        function updateTelemetryBarUI() {
+            const gpsDot = document.querySelector('.gps-status-dot');
+            const gpsText = document.getElementById('telemetry-gps-text');
+            if (gpsDot) {
+                gpsDot.className = 'gps-status-dot ' + (driverCoords.isLive ? 'active' : 'warning');
+            }
+            if (gpsText) {
+                gpsText.innerText = driverCoords.statusText;
+            }
+        }
+
+        function recalculateNavigationRoute() {
+            window.toast.info('Recalculating route with latest GPS telemetry...');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        handlePositionSuccess(pos);
+                        window.toast.success('Route recalculated successfully!');
+                    },
+                    (err) => {
+                        handlePositionError(err);
+                        updateMapDisplay();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                updateMapDisplay();
+            }
+        }
+
+        function openExternalNavigation() {
+            if (!activeTrip) {
+                window.toast.warning('No active emergency mission selected');
+                return;
+            }
+
+            const s = (activeTrip.status || '').toUpperCase();
+            const isTransporting = ['PATIENT_PICKED_UP', 'TRANSPORTING', 'ARRIVED_AT_HOSPITAL'].includes(s);
+
+            let destLat = activeTrip.pickupLatitude;
+            let destLng = activeTrip.pickupLongitude;
+
+            if (isTransporting && activeTrip.hospitalLatitude && activeTrip.hospitalLongitude) {
+                destLat = activeTrip.hospitalLatitude;
+                destLng = activeTrip.hospitalLongitude;
+            }
+
+            if (!destLat || !destLng || destLat === 0) {
+                window.toast.error('Destination GPS coordinates unavailable');
+                return;
+            }
+
+            // Universal Google Maps / Apple Maps directions intent URL
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${driverCoords.latitude},${driverCoords.longitude}&destination=${destLat},${destLng}&travelmode=driving`;
+            window.open(url, '_blank');
+        }
+
+        // ----------------------------------------------------
+        // Queue & History Renderers
+        // ----------------------------------------------------
+        function renderPendingPool(pool) {
+            const container = document.getElementById('pending-pool-container');
+            if (!pool || pool.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-muted" style="font-size: 13px;">
+                        <p style="margin: 0;">No pending emergency requests in queue.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Emergency ID</th>
+                            <th>Patient / Contact</th>
+                            <th>Emergency Type</th>
+                            <th>Severity</th>
+                            <th>Pickup Area</th>
+                            <th>Time</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pool.map(p => `
+                            <tr>
+                                <td><span class="badge badge-blue">#${p.id}</span></td>
+                                <td>
+                                    <div class="font-bold" style="color: var(--navy); font-size: 13px;">${escapeHtml(p.patientName || 'Emergency Patient')}</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">${escapeHtml(p.contactPhone || '')}</div>
+                                </td>
+                                <td><span class="badge badge-danger">${escapeHtml(p.emergencyType || 'GENERAL')}</span></td>
+                                <td><span class="badge badge-warning">${escapeHtml(p.severity || 'CRITICAL')}</span></td>
+                                <td style="font-size: 12.5px; max-width: 200px;">${escapeHtml(p.pickupAddress || 'Current GPS Location')}</td>
+                                <td style="font-size: 12px; color: var(--text-muted);">${escapeHtml(p.requestedAt || 'Just now')}</td>
+                                <td style="text-align: right;">
+                                    <button class="btn btn-sm btn-primary" onclick="acceptDispatch(${p.id})">
+                                        Accept Request
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderTripHistory(trips) {
+            const container = document.getElementById('trip-history-container');
+            if (!trips || trips.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-muted" style="font-size: 13px;">
+                        <p style="margin: 0;">No completed trips yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Trip #</th>
+                            <th>Patient</th>
+                            <th>Emergency Type</th>
+                            <th>Pickup Location</th>
+                            <th>Requested At</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trips.map(t => `
+                            <tr>
+                                <td><span class="badge badge-gray">#${t.id}</span></td>
+                                <td style="font-weight: 600; color: var(--navy); font-size: 13px;">${escapeHtml(t.patientName || 'Emergency Patient')}</td>
+                                <td><span class="badge badge-danger">${escapeHtml(t.emergencyType || 'GENERAL')}</span></td>
+                                <td style="font-size: 12.5px;">${escapeHtml(t.pickupAddress || 'N/A')}</td>
+                                <td style="font-size: 12px; color: var(--text-muted);">${escapeHtml(t.requestedAt || '')}</td>
+                                <td><span class="badge badge-success">COMPLETED</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function loadNearbyHospitalsForQuickList(trip) {
+            const container = document.getElementById('nearby-hospitals-quick-list');
+            if (!container) return;
+
+            const refLat = driverCoords.latitude || trip.pickupLatitude || 12.9716;
+            const refLng = driverCoords.longitude || trip.pickupLongitude || 77.5946;
+
+            try {
+                const res = await window.api.getNearbyHospitals(refLat, refLng, 40.0);
+                const list = (res && res.data && (res.data.hospitals || res.data.list)) ? (res.data.hospitals || res.data.list) : (res?.hospitals || (Array.isArray(res?.data) ? res.data : []));
+                loadedNearbyHospitals = list;
+
+                if (list.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-3 text-center text-xs text-muted col-span-2">
+                            No active emergency-capable hospitals found nearby. 
+                            <button class="btn btn-outline btn-xs mt-1" onclick="openHospitalSelectorModal(${trip.id})">Browse All</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show top 2-4 nearby suggestions
+                const topList = list.slice(0, 4);
+                container.innerHTML = topList.map(h => {
+                    const isSelected = (trip.destinationHospitalId === h.id);
+                    const isER = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+                    const isICU = (h.icuAvailable === 1 || h.icuAvailable === true);
+                    const distStr = (h.distanceKm != null) ? `${h.distanceKm.toFixed(1)} km` : 'Nearby';
+
+                    return `
+                        <div class="p-3 bg-white border ${isSelected ? 'border-primary-blue ring-2 ring-blue-200' : 'border-slate-200'} rounded-lg flex flex-col justify-between" style="border-radius: 8px;">
+                            <div>
+                                <div class="flex justify-between items-start gap-1">
+                                    <h5 class="font-bold text-navy text-xs m-0 truncate" title="${escapeHtml(h.name)}">${escapeHtml(h.name)}</h5>
+                                    <span class="badge badge-blue text-[10px] font-bold shrink-0">${distStr}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 mt-0.5 truncate">${escapeHtml(h.address || h.city || '')}</div>
+                                <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
+                                    <span class="badge ${isER ? 'badge-success' : 'badge-gray'}">${isER ? '⚡ ER Available' : 'No ER'}</span>
+                                    <span class="badge ${isICU ? 'badge-blue' : 'badge-gray'}">${isICU ? 'ICU Available' : 'No ICU'}</span>
+                                    <span class="badge badge-gray">${h.availableBeds != null ? `Available beds: ${h.availableBeds}` : 'Beds not provided'}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center">
+                                <span class="text-[11px] text-slate-600 font-semibold">📞 ${escapeHtml(h.emergencyContact || h.phone || 'N/A')}</span>
+                                <button class="btn btn-sm ${isSelected ? 'btn-success font-bold' : 'btn-primary'} text-xs py-1 px-2.5" onclick="selectDestinationHospital(${trip.id}, ${h.id}, '${escapeHtml(h.name)}')">
+                                    ${isSelected ? '✓ Selected' : 'Select Hospital'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Failed to load quick list of hospitals:', err);
+                container.innerHTML = `<div class="col-span-2 text-xs text-red-600 text-center py-2">Unable to load nearby hospitals.</div>`;
+            }
+        }
+
+        async function openHospitalSelectorModal(tripId) {
+            selectorTripId = tripId;
+            const modal = document.getElementById('hospital-selector-modal');
+            modal.classList.remove('hidden');
+
+            const listContainer = document.getElementById('modal-hospitals-list');
+            listContainer.innerHTML = `
+                <div class="text-center py-8 text-muted">
+                    <div class="spinner mb-2"></div>
+                    <p>Loading accredited emergency hospitals...</p>
+                </div>
+            `;
+
+            const refLat = driverCoords.latitude || (activeTrip ? activeTrip.pickupLatitude : 12.9716);
+            const refLng = driverCoords.longitude || (activeTrip ? activeTrip.pickupLongitude : 77.5946);
+
+            try {
+                const res = await window.api.getNearbyHospitals(refLat, refLng, 100.0);
+                loadedNearbyHospitals = (res && res.data && (res.data.hospitals || res.data.list)) ? (res.data.hospitals || res.data.list) : (res?.hospitals || (Array.isArray(res?.data) ? res.data : []));
+                renderModalHospitalsList(loadedNearbyHospitals);
+            } catch (err) {
+                console.error('Failed to load hospitals for modal:', err);
+                listContainer.innerHTML = `<div class="p-4 text-center text-red-600 text-xs">Error loading hospitals: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeHospitalSelectorModal() {
+            document.getElementById('hospital-selector-modal').classList.add('hidden');
+        }
+
+        function filterModalHospitals() {
+            const query = (document.getElementById('modal-hospital-search').value || '').toLowerCase().trim();
+            if (!query) {
+                renderModalHospitalsList(loadedNearbyHospitals);
+                return;
+            }
+            const filtered = loadedNearbyHospitals.filter(h => 
+                (h.name || '').toLowerCase().includes(query) ||
+                (h.city || '').toLowerCase().includes(query) ||
+                (h.address || '').toLowerCase().includes(query)
+            );
+            renderModalHospitalsList(filtered);
+        }
+
+        function renderModalHospitalsList(list) {
+            const container = document.getElementById('modal-hospitals-list');
+            if (!list || list.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-muted text-xs">
+                        <p>No matching hospitals found.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = list.map(h => {
+                const isSelected = activeTrip && (activeTrip.destinationHospitalId === h.id);
+                const isER = (h.emergencyAvailable === 1 || h.emergencyAvailable === true);
+                const isICU = (h.icuAvailable === 1 || h.icuAvailable === true);
+                const isAccepting = (h.acceptingAmbulances === 1 || h.acceptingAmbulances === true);
+                const distStr = (h.distanceKm != null) ? `${h.distanceKm.toFixed(1)} km` : 'Nearby';
+
+                return `
+                    <div class="p-4 border ${isSelected ? 'border-primary-blue bg-blue-50/40 ring-2 ring-blue-100' : 'border-slate-200 bg-white'} rounded-lg flex justify-between items-center flex-wrap gap-3">
+                        <div class="flex-1 min-w-[240px]">
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-navy text-sm m-0">${escapeHtml(h.name)}</h4>
+                                <span class="badge badge-blue text-[11px] font-bold">${distStr}</span>
+                            </div>
+                            <div class="text-xs text-slate-600 mt-1">${escapeHtml(h.address || '')}, ${escapeHtml(h.city || '')}</div>
+                            <div class="flex flex-wrap gap-1.5 mt-2 text-[10.5px]">
+                                <span class="badge ${isER ? 'badge-success' : 'badge-gray'}">${isER ? '⚡ 24/7 ER Available' : 'No ER'}</span>
+                                <span class="badge ${isICU ? 'badge-blue' : 'badge-gray'}">${isICU ? '✓ ICU Operational' : 'No ICU'}</span>
+                                <span class="badge ${isAccepting ? 'badge-success' : 'badge-warning'}">${isAccepting ? '🚑 Accepting Ambulances' : '⛔ Not Accepting'}</span>
+                                <span class="badge badge-gray">${h.availableBeds != null ? `Reported beds: ${h.availableBeds}` : 'Bed availability not provided'}</span>
+                            </div>
+                            <div class="text-xs text-slate-700 font-semibold mt-2">📞 Emergency ER Hotline: ${escapeHtml(h.emergencyContact || h.phone || 'N/A')}</div>
+                        </div>
+                        <div>
+                            <button class="btn ${isSelected ? 'btn-success font-bold' : 'btn-primary'} text-xs" onclick="selectDestinationHospital(${selectorTripId}, ${h.id}, '${escapeHtml(h.name)}')">
+                                ${isSelected ? '✓ Confirmed Destination' : 'Select Hospital'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectDestinationHospital(tripId, hospitalId, hospitalName) {
+            try {
+                await window.api.selectEmergencyHospital(tripId, hospitalId);
+                window.toast.success(`Destination hospital confirmed: ${hospitalName}`);
+                closeHospitalSelectorModal();
+
+                // If currently at PATIENT_PICKED_UP, advance status to TRANSPORTING
+                if (activeTrip && activeTrip.status === 'PATIENT_PICKED_UP') {
+                    await window.api.updateEmergencyRequestStatus(tripId, 'TRANSPORTING');
+                }
+
+                await loadDriverData();
+            } catch (err) {
+                console.error('Failed to select hospital destination:', err);
+                window.toast.error('Failed to select hospital: ' + (err.message || 'Server error'));
+            }
+        }
+
+        async function updateTripStatus(id, newStatus) {
+            try {
+                await window.api.updateEmergencyRequestStatus(id, newStatus);
+                window.toast.success(`Mission advanced to ${newStatus.replace(/_/g, ' ')}`);
+                await loadDriverData();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to update trip status');
+            }
+        }
+
+        async function acceptDispatch(id) {
+            try {
+                await window.api.acceptEmergencyRequest(id);
+                window.toast.success('Emergency dispatch accepted! Navigation route loading...');
+                await loadDriverData();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to accept dispatch');
+            }
+        }
+
+        async function updateVehicleStatus() {
+            const status = document.getElementById('vehicle-status-select').value;
+            try {
+                await window.api.updateAmbulanceStatus(status);
+                window.toast.success(`Vehicle status updated to ${status}`);
+                loadDriverData();
+            } catch (err) {
+                window.toast.error(err.message || 'Failed to update vehicle status');
+            }
+        }
+
+        function openSuggestHospitalModal() {
+            document.getElementById('sugg-hosp-name').value = '';
+            document.getElementById('sugg-hosp-address').value = '';
+            document.getElementById('sugg-hosp-city').value = 'Bengaluru';
+            document.getElementById('sugg-hosp-state').value = 'Karnataka';
+            document.getElementById('sugg-hosp-pincode').value = '560001';
+            
+            // Set initial coordinates from driver or default
+            const initLat = driverCoords.latitude || 12.9716;
+            const initLng = driverCoords.longitude || 77.5946;
+            document.getElementById('sugg-hosp-lat').value = initLat.toFixed(6);
+            document.getElementById('sugg-hosp-lng').value = initLng.toFixed(6);
+
+            document.getElementById('sugg-hosp-phone').value = '';
+            document.getElementById('sugg-hosp-er-contact').value = '';
+            document.getElementById('sugg-hosp-avail-beds').value = '10';
+            document.getElementById('sugg-hosp-total-beds').value = '50';
+            document.getElementById('sugg-hosp-er').checked = true;
+            document.getElementById('sugg-hosp-icu').checked = true;
+            document.getElementById('sugg-hosp-accepting').checked = true;
+
+            document.getElementById('suggest-hospital-modal').classList.remove('hidden');
+        }
+
+        function closeSuggestHospitalModal() {
+            document.getElementById('suggest-hospital-modal').classList.add('hidden');
+        }
+
+        function useAmbulanceLocationForHospital() {
+            if (driverCoords.latitude && driverCoords.longitude && driverCoords.latitude !== 0) {
+                document.getElementById('sugg-hosp-lat').value = driverCoords.latitude.toFixed(6);
+                document.getElementById('sugg-hosp-lng').value = driverCoords.longitude.toFixed(6);
+                window.toast.info('Populated coordinates from ambulance GPS. Please verify the actual hospital location.');
+            } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        document.getElementById('sugg-hosp-lat').value = pos.coords.latitude.toFixed(6);
+                        document.getElementById('sugg-hosp-lng').value = pos.coords.longitude.toFixed(6);
+                        window.toast.info('Acquired live GPS coordinates. Please verify the hospital location.');
+                    },
+                    (err) => {
+                        window.toast.error('Unable to acquire live location: ' + err.message);
+                    }
+                );
+            } else {
+                window.toast.error('Geolocation unsupported on this device.');
+            }
+        }
+
+        async function handleSuggestHospitalSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-suggest-hospital');
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
+
+            const payload = {
+                name: document.getElementById('sugg-hosp-name').value.trim(),
+                address: document.getElementById('sugg-hosp-address').value.trim(),
+                city: document.getElementById('sugg-hosp-city').value.trim(),
+                state: document.getElementById('sugg-hosp-state').value.trim(),
+                pincode: document.getElementById('sugg-hosp-pincode').value.trim(),
+                latitude: parseFloat(document.getElementById('sugg-hosp-lat').value),
+                longitude: parseFloat(document.getElementById('sugg-hosp-lng').value),
+                phone: document.getElementById('sugg-hosp-phone').value.trim(),
+                emergencyContact: document.getElementById('sugg-hosp-er-contact').value.trim(),
+                availableBeds: parseInt(document.getElementById('sugg-hosp-avail-beds').value, 10) || 0,
+                totalBeds: parseInt(document.getElementById('sugg-hosp-total-beds').value, 10) || 0,
+                emergencyAvailable: document.getElementById('sugg-hosp-er').checked,
+                icuAvailable: document.getElementById('sugg-hosp-icu').checked,
+                acceptingAmbulances: document.getElementById('sugg-hosp-accepting').checked
+            };
+
+            // Validation
+            if (!payload.name || !payload.address || !payload.city || !payload.state) {
+                alert('Hospital Name, Address, City, and State are required.');
+                btn.disabled = false;
+                btn.innerText = 'Submit for Review';
+                return;
+            }
+
+            if (isNaN(payload.latitude) || isNaN(payload.longitude) || payload.latitude < -90 || payload.latitude > 90 || payload.longitude < -180 || payload.longitude > 180) {
+                alert('Please enter valid geographic coordinates (Latitude: -90 to 90, Longitude: -180 to 180).');
+                btn.disabled = false;
+                btn.innerText = 'Submit for Review';
+                return;
+            }
+
+            if (payload.availableBeds < 0) {
+                alert('Available beds count cannot be negative.');
+                btn.disabled = false;
+                btn.innerText = 'Submit for Review';
+                return;
+            }
+
+            try {
+                const res = await window.api.suggestHospital(payload);
+                window.toast.success('Hospital submitted for admin review.');
+                alert('Hospital submitted for admin review. Once approved by an administrator, it will become available for emergency destination selection.');
+                closeSuggestHospitalModal();
+                if (selectorTripId) {
+                    openHospitalSelectorModal(selectorTripId);
+                }
+            } catch (err) {
+                console.error('Suggest hospital error:', err);
+                const msg = err.message || '';
+                if (msg.includes('Similar hospital already exists') || err.status === 409) {
+                    if (confirm(`${msg}\n\nDo you want to submit anyway for administrator review?`)) {
+                        try {
+                            await window.api.suggestHospital({ ...payload, force: true });
+                            window.toast.success('Hospital submitted for admin review.');
+                            alert('Hospital submitted for admin review with duplicate acknowledgment.');
+                            closeSuggestHospitalModal();
+                        } catch (subErr) {
+                            alert('Submission failed: ' + subErr.message);
+                        }
+                    }
+                } else {
+                    alert('Failed to suggest hospital: ' + (err.message || 'Server error'));
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Submit for Review';
+            }
+        }
+
+        function startPolling() {
+            if (!pollTimer) {
+                // Controlled 15-second polling
+                pollTimer = setInterval(() => {
+                    loadDriverData();
+                }, 15000);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
